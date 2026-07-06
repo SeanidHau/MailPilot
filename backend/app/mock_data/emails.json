@@ -1,0 +1,66 @@
+[
+  {
+    "message_id": "msg-001@mock",
+    "sender": "alice.johnson@acme-corp.com",
+    "recipients": "user@mailpilot.dev",
+    "subject": "Q3 Budget Review - Action Required",
+    "body": "Hi there,\n\nPlease review the Q3 budget proposal attached. The deadline for submission is 2026-07-15. We need your approval before we can proceed with the marketing campaign.\n\nThis is urgent - please respond by end of week.\n\nBest,\nAlice Johnson\nAcme Corp Finance",
+    "received_at": "2026-07-05T09:30:00"
+  },
+  {
+    "message_id": "msg-002@mock",
+    "sender": "newsletter@techdeals.com",
+    "recipients": "user@mailpilot.dev",
+    "subject": "FLASH SALE: 50% Off All Software Licenses!",
+    "body": "Don't miss out! For a limited time, get 50% off all software licenses. Click here to claim your discount code: http://deals.techdeals.com/promo\n\nUnsubscribe | Terms | Privacy\n\nThis is a promotional message from TechDeals.com",
+    "received_at": "2026-07-05T10:15:00"
+  },
+  {
+    "message_id": "msg-003@mock",
+    "sender": "billing@streamflix.com",
+    "recipients": "user@mailpilot.dev",
+    "subject": "Your Monthly Subscription Invoice",
+    "body": "Dear Customer,\n\nYour monthly Streamflix subscription has been processed. Amount charged: $14.99. Next billing date: 2026-08-05.\n\nTo view your invoice, visit your account settings.\n\nThank you for your continued subscription.\n\nStreamflix Billing Team",
+    "received_at": "2026-07-05T12:00:00"
+  },
+  {
+    "message_id": "msg-004@mock",
+    "sender": "prof.davis@university.edu",
+    "recipients": "user@mailpilot.dev",
+    "subject": "CS 401 Project Report Due Next Week",
+    "body": "Hello everyone,\n\nJust a reminder that your CS 401 semester project reports are due on 2026-07-12. Please submit through the course portal. The final presentation will be scheduled for the following week.\n\nOffice hours are Tuesday and Thursday 2-4pm if you need help.\n\nRegards,\nProf. Davis",
+    "received_at": "2026-07-05T14:00:00"
+  },
+  {
+    "message_id": "msg-005@mock",
+    "sender": "hr@globaltech.com",
+    "recipients": "user@mailpilot.dev",
+    "subject": "Interview Follow-up: Senior Developer Position",
+    "body": "Dear Candidate,\n\nThank you for interviewing with GlobalTech last week. We were impressed with your experience and would like to invite you for a second round interview.\n\nCould you please confirm your availability for a panel interview next Wednesday at 2pm? We would appreciate a response within 48 hours.\n\nBest regards,\nGlobalTech HR Team",
+    "received_at": "2026-07-04T16:00:00"
+  },
+  {
+    "message_id": "msg-006@mock",
+    "sender": "lottery@winners-circle.fake",
+    "recipients": "user@mailpilot.dev",
+    "subject": "CONGRATULATIONS! You Won $5,000,000!!!",
+    "body": "YOU ARE A WINNER!!! You have been selected to receive $5,000,000 in the International Lottery Sweepstakes! To claim your prize, simply reply with your bank account details and social security number. This is a limited time offer - act now!\n\nCongratulations again on your amazing luck!",
+    "received_at": "2026-07-04T08:00:00"
+  },
+  {
+    "message_id": "msg-007@mock",
+    "sender": "teammate@startup.io",
+    "recipients": "user@mailpilot.dev",
+    "subject": "Sprint planning tomorrow at 10am",
+    "body": "Hey,\n\nQuick reminder that we have sprint planning tomorrow (July 7th) at 10am. Please come prepared with your task estimates and any blockers from the current sprint.\n\nZoom link: https://zoom.us/j/123456\n\nSee you there!",
+    "received_at": "2026-07-06T08:30:00"
+  },
+  {
+    "message_id": "msg-008@mock",
+    "sender": "vendor@supplies-pro.com",
+    "recipients": "user@mailpilot.dev",
+    "subject": "Invoice #INV-2026-0789 Due Payment",
+    "body": "Dear Valued Customer,\n\nThis is a friendly reminder that invoice #INV-2026-0789 for $2,350.00 is due for payment by 2026-07-20. Please process this payment at your earliest convenience to avoid any late fees.\n\nYou can pay online at: https://supplies-pro.com/pay\n\nThank you for your business.\n\nSupplies Pro Billing",
+    "received_at": "2026-07-03T11:00:00"
+  }
+]

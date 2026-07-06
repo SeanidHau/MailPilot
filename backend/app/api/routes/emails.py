@@ -1,0 +1,103 @@
+from __future__ import annotations
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.orm import Session
+
+from app.db.session import get_db
+from app.schemas.email import EmailResponse, EmailListResponse, EmailPatchRequest, EmailDetailResponse
+from app.schemas.draft import DraftResponse
+from app.schemas.reminder import ReminderResponse
+from app.schemas.ai import ClassifyResponse, SummarizeResponse, GenerateDraftRequest, GenerateDraftResponse, ExtractRemindersResponse
+from app.services import email_service, draft_service, reminder_service
+
+router = APIRouter()
+
+
+@router.post("/emails/import")
+def import_emails(db: Session = Depends(get_db)):
+    count = email_service.import_mock_emails(db)
+    return {"imported": count}
+
+
+@router.get("/emails", response_model=EmailListResponse)
+def list_emails(
+    q: Optional[str] = Query(None),
+    category: Optional[str] = Query(None),
+    is_read: Optional[bool] = Query(None),
+    min_importance: Optional[int] = Query(None),
+    max_importance: Optional[int] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    items, total = email_service.get_emails(
+        db, q=q, category=category, is_read=is_read,
+        min_importance=min_importance, max_importance=max_importance,
+        page=page, page_size=page_size,
+    )
+    return {"items": items, "total": total, "page": page, "page_size": page_size}
+
+
+@router.get("/emails/{email_id}", response_model=EmailDetailResponse)
+def get_email(email_id: int, db: Session = Depends(get_db)):
+    email = email_service.get_email_detail(db, email_id)
+    if not email:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Email not found")
+    return email
+
+
+@router.patch("/emails/{email_id}", response_model=EmailResponse)
+def patch_email(email_id: int, body: EmailPatchRequest, db: Session = Depends(get_db)):
+    email = email_service.patch_email(db, email_id, body.model_dump(exclude_unset=True))
+    if not email:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Email not found")
+    return email
+
+
+@router.post("/emails/{email_id}/classify", response_model=ClassifyResponse)
+def classify_email(email_id: int, db: Session = Depends(get_db)):
+    email = email_service.classify_email(db, email_id)
+    if not email:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Email not found")
+    return {"category": email.category, "importance_score": email.importance_score}
+
+
+@router.post("/emails/{email_id}/summarize", response_model=SummarizeResponse)
+def summarize_email(email_id: int, db: Session = Depends(get_db)):
+    email = email_service.summarize_email(db, email_id)
+    if not email:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Email not found")
+    return {"summary": email.summary}
+
+
+@router.post("/emails/{email_id}/drafts", response_model=GenerateDraftResponse)
+def create_draft(email_id: int, body: GenerateDraftRequest, db: Session = Depends(get_db)):
+    draft = draft_service.generate_draft(db, email_id, body.tone)
+    if not draft:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Email not found")
+    return {"id": draft.id, "tone": draft.tone, "content": draft.content}
+
+
+@router.post("/emails/{email_id}/reminders/extract", response_model=ExtractRemindersResponse)
+def extract_reminders(email_id: int, db: Session = Depends(get_db)):
+    items = reminder_service.extract_reminders(db, email_id)
+    if items is None:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Email not found")
+    return {
+        "reminders": [
+            {
+                "title": r.title,
+                "description": r.description,
+                "reminder_type": r.reminder_type,
+                "due_at": r.due_at.isoformat() if r.due_at else None,
+            }
+            for r in items
+        ]
+    }
