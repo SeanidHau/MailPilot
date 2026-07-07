@@ -1,15 +1,15 @@
 """initial
 
-Revision ID: c35a0735da9d
+Revision ID: 951aabbdf27e
 Revises: 
-Create Date: 2026-07-06 15:09:34.818290
+Create Date: 2026-07-07 14:11:20.332045
 """
 from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = 'c35a0735da9d'
+revision: str = '951aabbdf27e'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -30,8 +30,8 @@ def upgrade() -> None:
     sa.Column('importance_score', sa.Integer(), nullable=False),
     sa.Column('summary', sa.Text(), nullable=True),
     sa.Column('imported_source', sa.String(length=64), nullable=False),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.Column('updated_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_emails_message_id'), 'emails', ['message_id'], unique=True)
@@ -39,7 +39,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('key', sa.String(length=128), nullable=False),
     sa.Column('value', sa.Text(), nullable=False),
-    sa.Column('updated_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('key')
     )
@@ -49,7 +49,7 @@ def upgrade() -> None:
     sa.Column('old_category', sa.String(length=32), nullable=False),
     sa.Column('new_category', sa.String(length=32), nullable=False),
     sa.Column('reason', sa.Text(), nullable=True),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
     sa.ForeignKeyConstraint(['email_id'], ['emails.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
@@ -59,8 +59,8 @@ def upgrade() -> None:
     sa.Column('tone', sa.String(length=32), nullable=False),
     sa.Column('content', sa.Text(), nullable=False),
     sa.Column('status', sa.String(length=16), nullable=False),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.Column('updated_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
     sa.ForeignKeyConstraint(['email_id'], ['emails.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
@@ -72,8 +72,8 @@ def upgrade() -> None:
     sa.Column('due_at', sa.DateTime(), nullable=True),
     sa.Column('reminder_type', sa.String(length=32), nullable=False),
     sa.Column('status', sa.String(length=16), nullable=False),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.Column('updated_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
     sa.ForeignKeyConstraint(['email_id'], ['emails.id'], ),
     sa.PrimaryKeyConstraint('id')
     )

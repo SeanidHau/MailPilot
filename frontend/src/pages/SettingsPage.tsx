@@ -66,7 +66,7 @@ export function SettingsPage() {
             <Database size={18} /> 数据库
           </h2>
           <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
-            演示环境默认使用 SQLite（本地文件）。生产环境请切换到 PostgreSQL，修改 <code>.env</code> 中的 <code>DATABASE_URL</code> 并运行 <code>docker compose up -d db</code>。
+            默认使用 PostgreSQL。通过 <code>docker compose up -d db</code> 启动数据库，<code>.env</code> 中配置 <code>DATABASE_URL</code>。
           </p>
         </div>
       </div>
