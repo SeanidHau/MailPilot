@@ -1,7 +1,14 @@
+[build-system]
+requires = ["setuptools>=64.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+
 [project]
 name = "mailpilot"
 version = "0.1.0"
-requires-python = ">=3.11"
+requires-python = ">=3.9"
 dependencies = [
     "fastapi>=0.110.0",
     "uvicorn[standard]>=0.29.0",
