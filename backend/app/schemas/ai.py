@@ -2,6 +2,8 @@ from __future__ import annotations
 from typing import Optional
 from pydantic import BaseModel
 
+from app.schemas import DraftTone
+
 
 class ClassifyResponse(BaseModel):
     category: str
@@ -13,7 +15,7 @@ class SummarizeResponse(BaseModel):
 
 
 class GenerateDraftRequest(BaseModel):
-    tone: str
+    tone: DraftTone
 
 
 class GenerateDraftResponse(BaseModel):
@@ -23,7 +25,7 @@ class GenerateDraftResponse(BaseModel):
 
 
 class ExtractRemindersResponse(BaseModel):
-    reminders: list["ReminderItem"]
+    reminders: list[ReminderItem]
 
 
 class ReminderItem(BaseModel):

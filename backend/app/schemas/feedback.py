@@ -15,8 +15,8 @@ class FeedbackResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class FeedbackCreateRequest(BaseModel):
-    email_id: int
-    old_category: str
-    new_category: str
-    reason: Optional[str] = None
+class FeedbackListResponse(BaseModel):
+    items: list[FeedbackResponse]
+    total: int
+    page: int
+    page_size: int

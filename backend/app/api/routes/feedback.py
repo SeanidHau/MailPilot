@@ -2,12 +2,13 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.schemas.feedback import FeedbackListResponse
 from app.services import feedback_service
 
 router = APIRouter()
 
 
-@router.get("/feedback")
+@router.get("/feedback", response_model=FeedbackListResponse)
 def list_feedback(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),

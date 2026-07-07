@@ -3,6 +3,12 @@ import datetime
 from typing import Optional
 from pydantic import BaseModel, Field
 
+from app.schemas import EmailCategory
+
+
+class ImportResponse(BaseModel):
+    imported: int
+
 
 class EmailBase(BaseModel):
     sender: str
@@ -40,16 +46,15 @@ class EmailListResponse(BaseModel):
 
 class EmailPatchRequest(BaseModel):
     is_read: Optional[bool] = None
-    category: Optional[str] = None
+    category: Optional[EmailCategory] = None
     importance_score: Optional[int] = Field(None, ge=1, le=5)
 
 
 class EmailDetailResponse(EmailResponse):
-    drafts: list["DraftResponse"] = []
-    reminders: list["ReminderResponse"] = []
+    drafts: list[DraftResponse] = []
+    reminders: list[ReminderResponse] = []
 
 
 from app.schemas.draft import DraftResponse  # noqa: E402
 from app.schemas.reminder import ReminderResponse  # noqa: E402
 EmailDetailResponse.model_rebuild()
-

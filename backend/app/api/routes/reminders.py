@@ -1,17 +1,17 @@
 from __future__ import annotations
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.schemas.reminder import ReminderResponse, ReminderPatchRequest
+from app.schemas.reminder import ReminderResponse, ReminderListResponse, ReminderPatchRequest, DeleteReminderResponse
 from app.services import reminder_service
 
 router = APIRouter()
 
 
-@router.get("/reminders")
+@router.get("/reminders", response_model=ReminderListResponse)
 def list_reminders(
     status: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
@@ -26,7 +26,6 @@ def list_reminders(
 def get_reminder(reminder_id: int, db: Session = Depends(get_db)):
     reminder = reminder_service.get_reminder(db, reminder_id)
     if not reminder:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Reminder not found")
     return reminder
 
@@ -35,15 +34,13 @@ def get_reminder(reminder_id: int, db: Session = Depends(get_db)):
 def patch_reminder(reminder_id: int, body: ReminderPatchRequest, db: Session = Depends(get_db)):
     reminder = reminder_service.patch_reminder(db, reminder_id, body.model_dump(exclude_unset=True))
     if not reminder:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Reminder not found")
     return reminder
 
 
-@router.delete("/reminders/{reminder_id}")
+@router.delete("/reminders/{reminder_id}", response_model=DeleteReminderResponse)
 def delete_reminder(reminder_id: int, db: Session = Depends(get_db)):
     reminder = reminder_service.delete_reminder(db, reminder_id)
     if not reminder:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Reminder not found")
     return {"status": "deleted"}

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { fetchEmails } from '../api/emails'
+import { fetchEmails, type EmailQueryParams } from '../api/emails'
 import { EmailTable } from '../components/EmailTable'
 import { EmailFilters } from '../components/EmailFilters'
 
@@ -8,7 +8,7 @@ export function EmailsPage() {
   const [filters, setFilters] = useState({ q: '', category: '', is_read: '', min_importance: '' })
   const [page, setPage] = useState(1)
 
-  const params: Record<string, any> = { page, page_size: 20 }
+  const params: EmailQueryParams = { page, page_size: 20 }
   if (filters.q) params.q = filters.q
   if (filters.category) params.category = filters.category
   if (filters.is_read) params.is_read = filters.is_read === 'true'

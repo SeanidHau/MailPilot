@@ -1,7 +1,12 @@
 import { api } from './client';
-import type { FeedbackResponse } from '../types/feedback';
+import type { FeedbackListResponse } from '../types/feedback';
 
-export async function fetchFeedback(params: Record<string, any> = {}) {
+export interface FeedbackQueryParams {
+  page?: number;
+  page_size?: number;
+}
+
+export async function fetchFeedback(params: FeedbackQueryParams = {}): Promise<FeedbackListResponse> {
   const { data } = await api.get('/feedback', { params });
   return data;
 }

@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { fetchEmail, patchEmail, classifyEmail, summarizeEmail, generateDraft, extractReminders } from '../api/emails'
+import { fetchEmail, patchEmail, classifyEmail, summarizeEmail, generateDraft, extractReminders, type EmailPatchBody } from '../api/emails'
 import { CategoryBadge } from '../components/CategoryBadge'
 import { ImportanceRating } from '../components/ImportanceRating'
 import { ArrowLeft, RefreshCw, FileText, Bell } from 'lucide-react'
@@ -40,7 +40,7 @@ export function EmailDetailPage() {
   const draftMut = useMutation({ mutationFn: (tone: string) => generateDraft(emailId, tone), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['email', emailId] }) })
   const reminderMut = useMutation({ mutationFn: () => extractReminders(emailId), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['email', emailId] }) })
   const patchMut = useMutation({
-    mutationFn: (body: Record<string, any>) => patchEmail(emailId, body),
+    mutationFn: (body: EmailPatchBody) => patchEmail(emailId, body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['email', emailId] }),
   })
 

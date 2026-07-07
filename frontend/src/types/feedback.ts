@@ -6,3 +6,10 @@ export interface FeedbackResponse {
   reason: string | null;
   created_at: string;
 }
+
+export interface FeedbackListResponse {
+  items: FeedbackResponse[];
+  total: number;
+  page: number;
+  page_size: number;
+}

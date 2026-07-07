@@ -1,20 +1,18 @@
 from __future__ import annotations
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.schemas.email import EmailResponse, EmailListResponse, EmailPatchRequest, EmailDetailResponse
-from app.schemas.draft import DraftResponse
-from app.schemas.reminder import ReminderResponse
+from app.schemas.email import ImportResponse, EmailResponse, EmailListResponse, EmailPatchRequest, EmailDetailResponse
 from app.schemas.ai import ClassifyResponse, SummarizeResponse, GenerateDraftRequest, GenerateDraftResponse, ExtractRemindersResponse
 from app.services import email_service, draft_service, reminder_service
 
 router = APIRouter()
 
 
-@router.post("/emails/import")
+@router.post("/emails/import", response_model=ImportResponse)
 def import_emails(db: Session = Depends(get_db)):
     count = email_service.import_mock_emails(db)
     return {"imported": count}
@@ -43,7 +41,6 @@ def list_emails(
 def get_email(email_id: int, db: Session = Depends(get_db)):
     email = email_service.get_email_detail(db, email_id)
     if not email:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Email not found")
     return email
 
@@ -52,7 +49,6 @@ def get_email(email_id: int, db: Session = Depends(get_db)):
 def patch_email(email_id: int, body: EmailPatchRequest, db: Session = Depends(get_db)):
     email = email_service.patch_email(db, email_id, body.model_dump(exclude_unset=True))
     if not email:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Email not found")
     return email
 
@@ -61,7 +57,6 @@ def patch_email(email_id: int, body: EmailPatchRequest, db: Session = Depends(ge
 def classify_email(email_id: int, db: Session = Depends(get_db)):
     email = email_service.classify_email(db, email_id)
     if not email:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Email not found")
     return {"category": email.category, "importance_score": email.importance_score}
 
@@ -70,16 +65,14 @@ def classify_email(email_id: int, db: Session = Depends(get_db)):
 def summarize_email(email_id: int, db: Session = Depends(get_db)):
     email = email_service.summarize_email(db, email_id)
     if not email:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Email not found")
     return {"summary": email.summary}
 
 
 @router.post("/emails/{email_id}/drafts", response_model=GenerateDraftResponse)
 def create_draft(email_id: int, body: GenerateDraftRequest, db: Session = Depends(get_db)):
-    draft = draft_service.generate_draft(db, email_id, body.tone)
+    draft = draft_service.generate_draft(db, email_id, body.tone.value)
     if not draft:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Email not found")
     return {"id": draft.id, "tone": draft.tone, "content": draft.content}
 
@@ -88,7 +81,6 @@ def create_draft(email_id: int, body: GenerateDraftRequest, db: Session = Depend
 def extract_reminders(email_id: int, db: Session = Depends(get_db)):
     items = reminder_service.extract_reminders(db, email_id)
     if items is None:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Email not found")
     return {
         "reminders": [

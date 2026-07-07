@@ -9,12 +9,28 @@ import type {
   ExtractRemindersResponse,
 } from '../types/email';
 
+export interface EmailQueryParams {
+  q?: string;
+  category?: string;
+  is_read?: boolean;
+  min_importance?: number;
+  max_importance?: number;
+  page?: number;
+  page_size?: number;
+}
+
+export interface EmailPatchBody {
+  is_read?: boolean;
+  category?: string;
+  importance_score?: number;
+}
+
 export async function importEmails(): Promise<{ imported: number }> {
   const { data } = await api.post('/emails/import');
   return data;
 }
 
-export async function fetchEmails(params: Record<string, any>): Promise<EmailListResponse> {
+export async function fetchEmails(params: EmailQueryParams): Promise<EmailListResponse> {
   const { data } = await api.get('/emails', { params });
   return data;
 }
@@ -24,7 +40,7 @@ export async function fetchEmail(id: number): Promise<EmailDetailResponse> {
   return data;
 }
 
-export async function patchEmail(id: number, body: Record<string, any>): Promise<EmailResponse> {
+export async function patchEmail(id: number, body: EmailPatchBody): Promise<EmailResponse> {
   const { data } = await api.patch(`/emails/${id}`, body);
   return data;
 }

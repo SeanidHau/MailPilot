@@ -1,3 +1,6 @@
+export type DraftTone = 'formal' | 'brief' | 'polite_decline' | 'ask_info';
+export type DraftStatus = 'draft' | 'saved';
+
 export interface DraftResponse {
   id: number;
   email_id: number;
@@ -6,4 +9,16 @@ export interface DraftResponse {
   status: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface DraftListResponse {
+  items: DraftResponse[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface DraftPatchRequest {
+  content?: string;
+  status?: DraftStatus;
 }

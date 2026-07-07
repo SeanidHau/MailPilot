@@ -3,6 +3,8 @@ import datetime
 from typing import Optional
 from pydantic import BaseModel
 
+from app.schemas import DraftStatus
+
 
 class DraftResponse(BaseModel):
     id: int
@@ -16,6 +18,13 @@ class DraftResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class DraftListResponse(BaseModel):
+    items: list[DraftResponse]
+    total: int
+    page: int
+    page_size: int
+
+
 class DraftPatchRequest(BaseModel):
     content: Optional[str] = None
-    status: Optional[str] = None
+    status: Optional[DraftStatus] = None
