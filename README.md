@@ -6,6 +6,7 @@ Project documents:
 
 - [Development Plan](docs/development-plan.md)
 - [Execution Plan](docs/execution-plan.md)
+- [中文文档](README_CN.md) | [Chinese](README_CN.md)
 
 ## Quick Start
 
