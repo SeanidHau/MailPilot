@@ -1,7 +1,7 @@
 import re
 from datetime import datetime, timedelta
 
-from app.ai import AIProvider
+from app.ai.providers.base import AIProvider
 
 
 class MockAIProvider(AIProvider):
@@ -13,20 +13,20 @@ class MockAIProvider(AIProvider):
         if any(w in text for w in ["urgent", "deadline", "final notice", "action required", "critical"]):
             return ("important", min(5, self._score_importance(text) + 2))
 
-        if any(w in text for w in ["discount", "sale", "offer", "unsubscribe", "campaign", "promo"]):
-            return ("promotion", 2)
+        if any(w in text for w in ["lottery", "winner", "prize", "click here", "free money", "congratulations"]):
+            return ("spam", 1)
 
         if any(w in text for w in ["invoice", "receipt", "payment", "due amount", "subscription", "billing"]):
             return ("bill", 3)
 
-        if any(w in text for w in ["assignment", "class", "meeting", "project", "report", "professor", "manager"]):
+        if any(w in text for w in ["assignment", "class", "project", "report", "professor", "manager"]):
             return ("school_work", 3)
 
         if any(w in text for w in ["reply", "respond", "confirm", "approve", "feedback", "question"]):
             return ("needs_reply", 3)
 
-        if any(w in text for w in ["lottery", "winner", "prize", "click here", "free money", "congratulations"]):
-            return ("spam", 1)
+        if any(w in text for w in ["discount", "sale", "offer", "unsubscribe", "campaign", "promo"]):
+            return ("promotion", 2)
 
         return ("normal", self._score_importance(text))
 
