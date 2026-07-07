@@ -48,7 +48,7 @@ def extract_reminders(db: Session, email_id: int):
     if not email:
         return None
 
-    provider = get_ai_provider()
+    provider = get_ai_provider(db)
     items = provider.extract_reminders({
         "subject": email.subject,
         "body": email.body,

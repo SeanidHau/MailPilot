@@ -98,7 +98,7 @@ def classify_email(db: Session, email_id: int):
     if not email:
         return None
 
-    provider = get_ai_provider()
+    provider = get_ai_provider(db)
     category, score = provider.classify_email({
         "subject": email.subject,
         "body": email.body,
@@ -117,7 +117,7 @@ def summarize_email(db: Session, email_id: int):
     if not email:
         return None
 
-    provider = get_ai_provider()
+    provider = get_ai_provider(db)
     summary = provider.summarize_email({
         "subject": email.subject,
         "body": email.body,
