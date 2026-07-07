@@ -21,26 +21,26 @@ export function EmailsPage() {
 
   return (
     <div>
-      <div className="page-header"><h1>Emails</h1></div>
+      <div className="page-header"><h1>邮件</h1></div>
       <EmailFilters filters={filters} onChange={setFilters} />
 
       {isLoading ? (
-        <div className="empty-state">Loading...</div>
+        <div className="empty-state">加载中...</div>
       ) : data ? (
         <>
           <EmailTable emails={data.items} />
           {data.total > data.page_size && (
             <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginTop: '1rem' }}>
               <button className="btn-secondary btn-sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-                Previous
+                上一页
               </button>
               <span style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }}>
-                Page {data.page} of {Math.ceil(data.total / data.page_size)}
+                第{data.page}页 / 共{Math.ceil(data.total / data.page_size)}页
               </span>
               <button className="btn-secondary btn-sm"
                 disabled={page >= Math.ceil(data.total / data.page_size)}
                 onClick={() => setPage(page + 1)}>
-                Next
+                下一页
               </button>
             </div>
           )}

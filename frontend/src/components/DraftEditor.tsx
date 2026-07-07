@@ -17,8 +17,8 @@ export function DraftEditor({ content: initial, onSave, onCancel }: Props) {
         style={{ width: '100%', resize: 'vertical', fontFamily: 'monospace', fontSize: '0.875rem' }}
       />
       <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-        <button className="btn-primary" onClick={() => onSave(content)}>Save</button>
-        {onCancel && <button className="btn-secondary" onClick={onCancel}>Cancel</button>}
+        <button className="btn-primary" onClick={() => onSave(content)}>保存</button>
+        {onCancel && <button className="btn-secondary" onClick={onCancel}>取消</button>}
       </div>
     </div>
   )

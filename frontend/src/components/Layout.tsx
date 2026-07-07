@@ -2,11 +2,11 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { LayoutDashboard, Mail, FileText, Bell, Settings } from 'lucide-react'
 
 const navItems = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/emails', icon: Mail, label: 'Emails' },
-  { to: '/drafts', icon: FileText, label: 'Drafts' },
-  { to: '/reminders', icon: Bell, label: 'Reminders' },
-  { to: '/settings', icon: Settings, label: 'Settings' },
+  { to: '/', icon: LayoutDashboard, label: '仪表盘' },
+  { to: '/emails', icon: Mail, label: '邮件' },
+  { to: '/drafts', icon: FileText, label: '草稿' },
+  { to: '/reminders', icon: Bell, label: '提醒' },
+  { to: '/settings', icon: Settings, label: '设置' },
 ]
 
 export function Layout() {

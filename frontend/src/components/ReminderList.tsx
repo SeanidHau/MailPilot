@@ -1,6 +1,10 @@
 import type { ReminderResponse } from '../types/reminder'
 import { Calendar, CheckCircle2, Trash2 } from 'lucide-react'
 
+const TYPE_LABELS: Record<string, string> = {
+  deadline: '截止日期', meeting: '会议', payment: '付款', reply_task: '回复任务', other: '其他',
+}
+
 interface Props {
   reminders: ReminderResponse[]
   onComplete?: (id: number) => void
@@ -9,7 +13,7 @@ interface Props {
 
 export function ReminderList({ reminders, onComplete, onDelete }: Props) {
   if (reminders.length === 0) {
-    return <div className="empty-state">No reminders.</div>
+    return <div className="empty-state">暂无提醒。</div>
   }
 
   return (
@@ -28,16 +32,16 @@ export function ReminderList({ reminders, onComplete, onDelete }: Props) {
             )}
             <div style={{ display: 'flex', gap: '0.75rem', marginTop: 4, fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <Calendar size={12} /> {r.due_at ? new Date(r.due_at).toLocaleDateString() : 'No due date'}
+                <Calendar size={12} /> {r.due_at ? new Date(r.due_at).toLocaleDateString() : '无截止日期'}
               </span>
-              <span>{r.reminder_type.replace('_', ' ')}</span>
+              <span>{TYPE_LABELS[r.reminder_type] || r.reminder_type}</span>
             </div>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             {r.status === 'pending' && onComplete && (
               <button className="btn-sm" style={{ background: 'var(--color-success)', color: '#fff' }}
                 onClick={() => onComplete(r.id)}>
-                <CheckCircle2 size={14} style={{ marginRight: 4 }} /> Done
+                <CheckCircle2 size={14} style={{ marginRight: 4 }} /> 完成
               </button>
             )}
             {r.status !== 'deleted' && onDelete && (

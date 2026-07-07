@@ -9,27 +9,27 @@ export function DashboardPage() {
   const { data, isLoading } = useQuery({ queryKey: ['dashboard'], queryFn: fetchDashboard })
   const navigate = useNavigate()
 
-  if (isLoading) return <div className="empty-state">Loading...</div>
+  if (isLoading) return <div className="empty-state">加载中...</div>
   if (!data) return null
 
   return (
     <div>
-      <div className="page-header"><h1>Dashboard</h1></div>
+      <div className="page-header"><h1>仪表盘</h1></div>
 
       <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-        <StatCard label="Pending Emails" value={data.pending_emails} color="#f59e0b" />
-        <StatCard label="Important" value={data.important_emails} color="#ef4444" />
-        <StatCard label="Pending Reminders" value={data.pending_reminders} color="#3b82f6" />
+        <StatCard label="待处理邮件" value={data.pending_emails} color="#f59e0b" />
+        <StatCard label="重要邮件" value={data.important_emails} color="#ef4444" />
+        <StatCard label="待办提醒" value={data.pending_reminders} color="#3b82f6" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
         <div>
           <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem' }}>
             <Star size={16} style={{ marginRight: 6 }} />
-            Recent Important Emails
+            最近重要邮件
           </h2>
           {data.recent_important_emails.length === 0 ? (
-            <div className="empty-state">No important emails</div>
+            <div className="empty-state">暂无重要邮件</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {data.recent_important_emails.map((e) => (
@@ -49,10 +49,10 @@ export function DashboardPage() {
         <div>
           <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem' }}>
             <Bell size={16} style={{ marginRight: 6 }} />
-            Upcoming Reminders
+            近期提醒
           </h2>
           {data.upcoming_reminders.length === 0 ? (
-            <div className="empty-state">No upcoming reminders</div>
+            <div className="empty-state">暂无提醒</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {data.upcoming_reminders.map((r) => (

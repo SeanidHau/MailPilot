@@ -22,18 +22,18 @@ export function RemindersPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['reminders'] }),
   })
 
-  if (isLoading) return <div className="empty-state">Loading...</div>
+  if (isLoading) return <div className="empty-state">加载中...</div>
 
   const reminders = data?.items || []
 
   return (
     <div>
       <div className="page-header">
-        <h1>Reminders</h1>
+        <h1>提醒</h1>
         <select value={filter} onChange={(e) => setFilter(e.target.value)} style={{ fontSize: '0.875rem' }}>
-          <option value="">All Active</option>
-          <option value="pending">Pending</option>
-          <option value="done">Completed</option>
+          <option value="">全部活跃</option>
+          <option value="pending">待处理</option>
+          <option value="done">已完成</option>
         </select>
       </div>
 

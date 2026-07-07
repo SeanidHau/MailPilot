@@ -7,7 +7,7 @@ export function EmailTable({ emails }: { emails: EmailResponse[] }) {
   const navigate = useNavigate()
 
   if (emails.length === 0) {
-    return <div className="empty-state">No emails found.</div>
+    return <div className="empty-state">暂无邮件。</div>
   }
 
   return (
@@ -16,11 +16,11 @@ export function EmailTable({ emails }: { emails: EmailResponse[] }) {
         <thead>
           <tr>
             <th style={{ width: 30 }}></th>
-            <th>Sender</th>
-            <th>Subject</th>
-            <th>Category</th>
-            <th>Importance</th>
-            <th>Received</th>
+            <th>发件人</th>
+            <th>主题</th>
+            <th>分类</th>
+            <th>重要性</th>
+            <th>接收时间</th>
           </tr>
         </thead>
         <tbody>
