@@ -69,6 +69,12 @@ pytest tests/ -v
 | `ANTHROPIC_MODEL` | `claude-sonnet-4-5-20250929` | 默认 Anthropic 模型 |
 | `JWT_SECRET_KEY` | 未配置时自动生成 | JWT 签名密钥。非本地开发环境应配置稳定密钥 |
 | `ENCRYPTION_KEY` | 未配置时自动生成 | 用于加密存储 AI API Key 的 Fernet 密钥。必须保持稳定，否则重启后无法解密旧值 |
+| `GMAIL_CLIENT_ID` | 空 | Gmail 集成使用的 Google OAuth client ID |
+| `GMAIL_CLIENT_SECRET` | 空 | Gmail 集成使用的 Google OAuth client secret |
+| `GMAIL_REDIRECT_URI` | `http://localhost:8000/api/gmail/oauth/callback` | Google OAuth 回调地址，必须与 Google Cloud OAuth client 配置一致 |
+| `GMAIL_SCOPES` | `openid email https://www.googleapis.com/auth/gmail.readonly` | 空格分隔的 Google OAuth scope |
+| `GMAIL_OAUTH_SUCCESS_URL` | `http://localhost:5173/settings?gmail=connected` | Gmail OAuth 成功后跳回的前端地址 |
+| `GMAIL_OAUTH_FAILURE_URL` | `http://localhost:5173/settings?gmail=error` | Gmail OAuth 失败后跳回的前端地址 |
 | `VITE_API_BASE_URL` | `/api` | 前端 API 基础 URL |
 
 ## API 端点
@@ -111,6 +117,13 @@ pytest tests/ -v
 - `GET /api/settings/ai` — 读取 AI 提供商配置。已登录时读取当前用户配置，未登录时返回默认配置
 - `PUT /api/settings/ai` — 保存按用户隔离、加密存储的 AI 提供商配置，需要 Bearer token
 
+### Gmail
+- `GET /api/gmail/authorize` — 生成 Google OAuth 授权地址，需要 Bearer token
+- `GET /api/gmail/oauth/callback` — Google OAuth 回调；交换授权码，加密存储 token，然后跳回前端
+- `GET /api/gmail/status` — 读取当前用户 Gmail 连接状态，需要 Bearer token
+- `POST /api/gmail/refresh` — 强制刷新当前用户 Gmail access token，需要 Bearer token
+- `DELETE /api/gmail/disconnect` — 删除当前用户已保存的 Gmail token，需要 Bearer token
+
 ## 邮件分类
 
 | 分类 | 说明 |
@@ -135,7 +148,7 @@ pytest tests/ -v
 ## MVP 局限性
 
 - 无高级垃圾邮件检测模型
-- 尚未支持 Gmail 或 Outlook 集成；邮件数据仍来自 mock JSON 导入
+- 已支持 Gmail OAuth 授权，但尚未实现邮箱同步；邮件数据仍来自 mock JSON 导入
 - 不支持自动发送邮件
 - 已有用户认证及按用户隔离的数据管理；未登录访问数据 API 返回 401
 - AI 提供商已可配置，但生产级观测、重试策略和成本控制尚未完善
@@ -160,7 +173,7 @@ pytest tests/ -v
 
 ### 邮箱集成
 
-- [ ] 实现 Gmail OAuth 授权和 token 刷新。
+- [x] 实现 Gmail OAuth 授权和 token 刷新。
 - [ ] 实现 Outlook/Microsoft Graph OAuth 授权和 token 刷新。
 - [ ] 增加邮箱同步任务：收件箱拉取、增量更新、已读/未读状态同步、按邮箱服务商 message ID 去重。
 - [ ] 增加手动 JSON 上传/导入 UI，而不是只能导入后端内置 mock 文件。

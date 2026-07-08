@@ -9,3 +9,14 @@ export interface AIProviderConfig {
   anthropic_base_url: string;
   anthropic_model: string;
 }
+
+export interface GmailStatus {
+  connected: boolean;
+  email?: string | null;
+  scopes?: string | null;
+  expires_at?: string | null;
+}
+
+export interface GmailAuthorizeResponse {
+  authorization_url: string;
+}

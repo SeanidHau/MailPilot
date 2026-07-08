@@ -69,6 +69,12 @@ pytest tests/ -v
 | `ANTHROPIC_MODEL` | `claude-sonnet-4-5-20250929` | Default Anthropic model |
 | `JWT_SECRET_KEY` | generated if unset | JWT signing key. Set a stable secret outside local development |
 | `ENCRYPTION_KEY` | generated if unset | Fernet key for encrypted stored AI API keys. Must be stable to decrypt saved values after restart |
+| `GMAIL_CLIENT_ID` | empty | Google OAuth client ID for Gmail integration |
+| `GMAIL_CLIENT_SECRET` | empty | Google OAuth client secret for Gmail integration |
+| `GMAIL_REDIRECT_URI` | `http://localhost:8000/api/gmail/oauth/callback` | Google OAuth callback URL. Must match the Google Cloud OAuth client |
+| `GMAIL_SCOPES` | `openid email https://www.googleapis.com/auth/gmail.readonly` | Space-separated Google OAuth scopes |
+| `GMAIL_OAUTH_SUCCESS_URL` | `http://localhost:5173/settings?gmail=connected` | Frontend URL used after successful Gmail OAuth |
+| `GMAIL_OAUTH_FAILURE_URL` | `http://localhost:5173/settings?gmail=error` | Frontend URL used after failed Gmail OAuth |
 | `VITE_API_BASE_URL` | `/api` | Frontend API base URL |
 
 ## API Endpoints
@@ -111,6 +117,13 @@ pytest tests/ -v
 - `GET /api/settings/ai` — Read AI provider config. Uses the current user's config when authenticated, otherwise returns defaults
 - `PUT /api/settings/ai` — Save encrypted per-user AI provider config, requires Bearer token
 
+### Gmail
+- `GET /api/gmail/authorize` - Build a Google OAuth authorization URL, requires Bearer token
+- `GET /api/gmail/oauth/callback` - Google OAuth callback; exchanges code, stores encrypted tokens, then redirects to the frontend
+- `GET /api/gmail/status` - Read the current user's Gmail connection state, requires Bearer token
+- `POST /api/gmail/refresh` - Force refresh the current user's Gmail access token, requires Bearer token
+- `DELETE /api/gmail/disconnect` - Remove the current user's stored Gmail tokens, requires Bearer token
+
 ## Email Categories
 
 | Category | Description |
@@ -135,7 +148,7 @@ pytest tests/ -v
 ## MVP Limitations
 
 - No advanced spam detection model
-- No Gmail or Outlook integration yet; email data still comes from mock JSON import
+- Gmail OAuth authorization is available, but mailbox sync is not implemented yet; email data still comes from mock JSON import
 - No automatic email sending
 - User authentication exists with per-user data isolation; unauthenticated access to data APIs returns 401
 - AI providers are configurable, but production-grade provider observability, retry policy, and cost controls are not complete
@@ -160,7 +173,7 @@ pytest tests/ -v
 
 ### Mailbox Integration
 
-- [ ] Implement Gmail OAuth authorization and token refresh.
+- [x] Implement Gmail OAuth authorization and token refresh.
 - [ ] Implement Outlook/Microsoft Graph OAuth authorization and token refresh.
 - [ ] Add mailbox sync jobs for inbox fetch, incremental updates, read/unread state, and deduplication by provider message ID.
 - [ ] Add manual JSON upload/import UI instead of only importing the bundled backend mock file.

@@ -1,13 +1,20 @@
-import { useState, useEffect } from 'react'
-import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Brain, Database, ExternalLink, Mail, RefreshCw, Save, Unlink, Upload } from 'lucide-react'
 import { importEmails } from '../api/emails'
-import { fetchAISettings, updateAISettings } from '../api/settings'
-import type { AIProviderConfig, AIProvider } from '../types/settings'
-import { Upload, Database, Brain, Mail, Save } from 'lucide-react'
+import {
+  disconnectGmail,
+  fetchAISettings,
+  fetchGmailAuthorizationUrl,
+  fetchGmailStatus,
+  refreshGmailToken,
+  updateAISettings,
+} from '../api/settings'
+import type { AIProvider, AIProviderConfig } from '../types/settings'
 
 const PROVIDERS: { value: AIProvider; label: string }[] = [
-  { value: 'mock', label: 'Mock（基于规则）' },
-  { value: 'openai', label: 'OpenAI 兼容' },
+  { value: 'mock', label: 'Mock rules' },
+  { value: 'openai', label: 'OpenAI compatible' },
   { value: 'anthropic', label: 'Anthropic' },
 ]
 
@@ -34,15 +41,39 @@ const labelStyle: React.CSSProperties = {
   marginTop: '0.5rem',
 }
 
+const panelStyle: React.CSSProperties = {
+  padding: '0.75rem',
+  background: '#f8fafc',
+  borderRadius: 'var(--radius)',
+  marginBottom: '0.5rem',
+}
+
+function noticeStyle(ok: boolean): React.CSSProperties {
+  return {
+    marginTop: '0.75rem',
+    padding: '0.5rem 0.75rem',
+    borderRadius: 'var(--radius)',
+    background: ok ? '#f0fdf4' : '#fef2f2',
+    color: ok ? '#166534' : '#991b1b',
+    fontSize: '0.875rem',
+  }
+}
+
 export function SettingsPage() {
   const queryClient = useQueryClient()
   const [importMsg, setImportMsg] = useState('')
   const [saveMsg, setSaveMsg] = useState('')
+  const [gmailMsg, setGmailMsg] = useState('')
   const [config, setConfig] = useState<AIProviderConfig>(defaultConfig)
 
-  const { data: savedConfig, isLoading } = useQuery({
+  const { data: savedConfig } = useQuery({
     queryKey: ['aiSettings'],
     queryFn: fetchAISettings,
+  })
+
+  const { data: gmailStatus } = useQuery({
+    queryKey: ['gmailStatus'],
+    queryFn: fetchGmailStatus,
   })
 
   useEffect(() => {
@@ -52,36 +83,60 @@ export function SettingsPage() {
   const importMut = useMutation({
     mutationFn: importEmails,
     onSuccess: (data) => {
-      setImportMsg(`成功导入 ${data.imported} 封邮件。`)
+      setImportMsg(`Imported ${data.imported} emails.`)
       queryClient.invalidateQueries()
     },
-    onError: (err: Error) => setImportMsg(`导入失败：${err.message}`),
+    onError: (err: Error) => setImportMsg(`Import failed: ${err.message}`),
   })
 
   const saveMut = useMutation({
     mutationFn: updateAISettings,
     onSuccess: () => {
-      setSaveMsg('AI 配置已保存，下次 AI 请求生效。')
+      setSaveMsg('AI settings saved.')
       queryClient.invalidateQueries({ queryKey: ['aiSettings'] })
     },
-    onError: (err: Error) => setSaveMsg(`保存失败：${err.message}`),
+    onError: (err: Error) => setSaveMsg(`Save failed: ${err.message}`),
+  })
+
+  const connectGmailMut = useMutation({
+    mutationFn: fetchGmailAuthorizationUrl,
+    onSuccess: ({ authorization_url }) => {
+      window.location.href = authorization_url
+    },
+    onError: (err: Error) => setGmailMsg(`Gmail authorization failed: ${err.message}`),
+  })
+
+  const refreshGmailMut = useMutation({
+    mutationFn: refreshGmailToken,
+    onSuccess: () => {
+      setGmailMsg('Gmail token refreshed.')
+      queryClient.invalidateQueries({ queryKey: ['gmailStatus'] })
+    },
+    onError: (err: Error) => setGmailMsg(`Refresh failed: ${err.message}`),
+  })
+
+  const disconnectGmailMut = useMutation({
+    mutationFn: disconnectGmail,
+    onSuccess: () => {
+      setGmailMsg('Gmail disconnected.')
+      queryClient.invalidateQueries({ queryKey: ['gmailStatus'] })
+    },
+    onError: (err: Error) => setGmailMsg(`Disconnect failed: ${err.message}`),
   })
 
   const update = (patch: Partial<AIProviderConfig>) => setConfig((c) => ({ ...c, ...patch }))
 
   return (
     <div>
-      <div className="page-header"><h1>设置</h1></div>
+      <div className="page-header"><h1>Settings</h1></div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-        {/* AI Provider Config */}
         <div className="card">
           <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Brain size={18} /> AI 提供商配置
+            <Brain size={18} /> AI Provider
           </h2>
 
-          {/* Provider selector */}
-          <label style={labelStyle}>提供商</label>
+          <label style={labelStyle}>Provider</label>
           <select
             value={config.provider}
             onChange={(e) => update({ provider: e.target.value as AIProvider })}
@@ -92,137 +147,92 @@ export function SettingsPage() {
             ))}
           </select>
 
-          {/* OpenAI fields */}
           {config.provider === 'openai' && (
-            <div style={{ padding: '0.75rem', background: '#f8fafc', borderRadius: 'var(--radius)', marginBottom: '0.5rem' }}>
-              <h3 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem' }}>OpenAI 兼容配置</h3>
+            <div style={panelStyle}>
+              <h3 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem' }}>OpenAI compatible</h3>
               <label style={labelStyle}>API Key</label>
-              <input
-                type="password"
-                placeholder="sk-..."
-                value={config.openai_api_key}
-                onChange={(e) => update({ openai_api_key: e.target.value })}
-                style={inputStyle}
-              />
+              <input type="password" placeholder="sk-..." value={config.openai_api_key} onChange={(e) => update({ openai_api_key: e.target.value })} style={inputStyle} />
               <label style={labelStyle}>Base URL</label>
-              <input
-                type="text"
-                placeholder="https://api.openai.com/v1"
-                value={config.openai_base_url}
-                onChange={(e) => update({ openai_base_url: e.target.value })}
-                style={inputStyle}
-              />
-              <label style={labelStyle}>模型</label>
-              <input
-                type="text"
-                placeholder="gpt-4o"
-                value={config.openai_model}
-                onChange={(e) => update({ openai_model: e.target.value })}
-                style={inputStyle}
-              />
-              <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                支持任意 OpenAI 兼容 API。
-              </p>
+              <input type="text" placeholder="https://api.openai.com/v1" value={config.openai_base_url} onChange={(e) => update({ openai_base_url: e.target.value })} style={inputStyle} />
+              <label style={labelStyle}>Model</label>
+              <input type="text" placeholder="gpt-4o" value={config.openai_model} onChange={(e) => update({ openai_model: e.target.value })} style={inputStyle} />
             </div>
           )}
 
-          {/* Anthropic fields */}
           {config.provider === 'anthropic' && (
-            <div style={{ padding: '0.75rem', background: '#f8fafc', borderRadius: 'var(--radius)', marginBottom: '0.5rem' }}>
-              <h3 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem' }}>Anthropic 配置</h3>
+            <div style={panelStyle}>
+              <h3 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem' }}>Anthropic</h3>
               <label style={labelStyle}>API Key</label>
-              <input
-                type="password"
-                placeholder="sk-ant-..."
-                value={config.anthropic_api_key}
-                onChange={(e) => update({ anthropic_api_key: e.target.value })}
-                style={inputStyle}
-              />
+              <input type="password" placeholder="sk-ant-..." value={config.anthropic_api_key} onChange={(e) => update({ anthropic_api_key: e.target.value })} style={inputStyle} />
               <label style={labelStyle}>Base URL</label>
-              <input
-                type="text"
-                placeholder="https://api.anthropic.com"
-                value={config.anthropic_base_url}
-                onChange={(e) => update({ anthropic_base_url: e.target.value })}
-                style={inputStyle}
-              />
-              <label style={labelStyle}>模型</label>
-              <input
-                type="text"
-                placeholder="claude-sonnet-4-5-20250929"
-                value={config.anthropic_model}
-                onChange={(e) => update({ anthropic_model: e.target.value })}
-                style={inputStyle}
-              />
+              <input type="text" placeholder="https://api.anthropic.com" value={config.anthropic_base_url} onChange={(e) => update({ anthropic_base_url: e.target.value })} style={inputStyle} />
+              <label style={labelStyle}>Model</label>
+              <input type="text" placeholder="claude-sonnet-4-5-20250929" value={config.anthropic_model} onChange={(e) => update({ anthropic_model: e.target.value })} style={inputStyle} />
             </div>
           )}
 
-          {/* Mock info */}
           {config.provider === 'mock' && (
-            <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginBottom: '0.75rem' }}>
-              Mock 提供商使用关键词和正则匹配，无需 API Key，无需联网。
+            <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)', marginBottom: '0.75rem' }}>
+              Mock uses local rules and does not need an API key.
             </p>
           )}
 
-          <button
-            className="btn-primary"
-            onClick={() => saveMut.mutate(config)}
-            disabled={saveMut.isPending}
-            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-          >
+          <button className="btn-primary" onClick={() => saveMut.mutate(config)} disabled={saveMut.isPending} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <Save size={14} />
-            {saveMut.isPending ? '正在保存...' : '保存 AI 配置'}
+            {saveMut.isPending ? 'Saving...' : 'Save AI Settings'}
           </button>
-          {saveMsg && (
-            <div style={{
-              marginTop: '0.75rem', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius)',
-              background: saveMsg.startsWith('AI') ? '#f0fdf4' : '#fef2f2',
-              color: saveMsg.startsWith('AI') ? '#166534' : '#991b1b',
-              fontSize: '0.875rem',
-            }}>
-              {saveMsg}
-            </div>
-          )}
+          {saveMsg && <div style={noticeStyle(saveMsg.startsWith('AI'))}>{saveMsg}</div>}
         </div>
 
-        {/* Mock Import */}
         <div className="card">
           <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Upload size={18} /> 模拟数据导入
+            <Mail size={18} /> Gmail Integration
           </h2>
           <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)', marginBottom: '0.75rem' }}>
-            从本地 mock JSON 文件导入示例邮件数据。重复邮件（按 Message-ID 去重）将被跳过。
+            Connect Gmail with OAuth. Access and refresh tokens are encrypted before being stored.
+          </p>
+          <div style={{ marginBottom: '0.75rem', fontSize: '0.875rem' }}>
+            Status: {gmailStatus?.connected ? `Connected${gmailStatus.email ? ` as ${gmailStatus.email}` : ''}` : 'Not connected'}
+            {gmailStatus?.expires_at && (
+              <span style={{ color: 'var(--color-text-muted)' }}> · expires {new Date(gmailStatus.expires_at).toLocaleString()}</span>
+            )}
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <button className="btn-primary" onClick={() => connectGmailMut.mutate()} disabled={connectGmailMut.isPending} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <ExternalLink size={14} />
+              {gmailStatus?.connected ? 'Reconnect Gmail' : 'Connect Gmail'}
+            </button>
+            <button className="btn-secondary" onClick={() => refreshGmailMut.mutate()} disabled={!gmailStatus?.connected || refreshGmailMut.isPending} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <RefreshCw size={14} />
+              Refresh Token
+            </button>
+            <button className="btn-secondary" onClick={() => disconnectGmailMut.mutate()} disabled={!gmailStatus?.connected || disconnectGmailMut.isPending} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Unlink size={14} />
+              Disconnect
+            </button>
+          </div>
+          {gmailMsg && <div style={noticeStyle(!gmailMsg.includes('failed'))}>{gmailMsg}</div>}
+        </div>
+
+        <div className="card">
+          <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Upload size={18} /> Mock Data Import
+          </h2>
+          <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)', marginBottom: '0.75rem' }}>
+            Import bundled mock email data for local development.
           </p>
           <button className="btn-primary" onClick={() => importMut.mutate()} disabled={importMut.isPending}>
-            {importMut.isPending ? '正在导入...' : '导入模拟邮件'}
+            {importMut.isPending ? 'Importing...' : 'Import Mock Emails'}
           </button>
-          {importMsg && (
-            <div style={{
-              marginTop: '0.75rem', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius)',
-              background: importMsg.startsWith('成功') ? '#f0fdf4' : '#fef2f2',
-              color: importMsg.startsWith('成功') ? '#166534' : '#991b1b',
-              fontSize: '0.875rem',
-            }}>
-              {importMsg}
-            </div>
-          )}
+          {importMsg && <div style={noticeStyle(importMsg.startsWith('Imported'))}>{importMsg}</div>}
         </div>
 
         <div className="card">
           <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Mail size={18} /> 邮箱集成
+            <Database size={18} /> Database
           </h2>
           <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
-            Gmail 和 Outlook 集成计划在后续版本中实现。当前仅支持通过 mock JSON 数据导入作为邮件来源。
-          </p>
-        </div>
-
-        <div className="card">
-          <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Database size={18} /> 数据库
-          </h2>
-          <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
-            默认使用 PostgreSQL。通过 <code>docker compose up -d db</code> 启动数据库，<code>.env</code> 中配置 <code>DATABASE_URL</code>。
+            PostgreSQL is used by default. Start it with <code>docker compose up -d db</code>, then run backend migrations.
           </p>
         </div>
       </div>
