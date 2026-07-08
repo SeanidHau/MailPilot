@@ -70,10 +70,20 @@ class ClassificationFeedback(Base):
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(256), unique=True, index=True)
+    hashed_password: Mapped[str] = mapped_column(String(256))
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
+
+
 class Setting(Base):
     __tablename__ = "settings"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    key: Mapped[str] = mapped_column(String(128), unique=True)
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True, default=None)
+    key: Mapped[str] = mapped_column(String(128))
     value: Mapped[str] = mapped_column(Text)
     updated_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())

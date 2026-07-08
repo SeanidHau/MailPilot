@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     anthropic_base_url: str = "https://api.anthropic.com"
     anthropic_model: str = "claude-sonnet-4-5-20250929"
 
+    # Auth
+    jwt_secret_key: str = "change-me-in-production"
+
     model_config = {"env_file": ".env"}
 
 

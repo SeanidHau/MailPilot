@@ -18,8 +18,13 @@ DEFAULT_AI_CONFIG = {
 }
 
 
-def get_ai_config(db: Session) -> dict:
-    row = db.query(Setting).filter(Setting.key == AI_SETTINGS_KEY).first()
+def _build_key(user_id: Optional[int], key: str) -> str:
+    return f"u{user_id}:{key}" if user_id else key
+
+
+def get_ai_config(db: Session, user_id: Optional[int] = None) -> dict:
+    db_key = _build_key(user_id, AI_SETTINGS_KEY)
+    row = db.query(Setting).filter(Setting.key == db_key).first()
     if row:
         try:
             stored = json.loads(row.value)
@@ -29,15 +34,16 @@ def get_ai_config(db: Session) -> dict:
     return dict(DEFAULT_AI_CONFIG)
 
 
-def save_ai_config(db: Session, config: dict) -> dict:
+def save_ai_config(db: Session, config: dict, user_id: Optional[int] = None) -> dict:
     merged = {**DEFAULT_AI_CONFIG, **config}
+    db_key = _build_key(user_id, AI_SETTINGS_KEY)
     value = json.dumps(merged)
 
-    row = db.query(Setting).filter(Setting.key == AI_SETTINGS_KEY).first()
+    row = db.query(Setting).filter(Setting.key == db_key).first()
     if row:
         row.value = value
     else:
-        row = Setting(key=AI_SETTINGS_KEY, value=value)
+        row = Setting(key=db_key, value=value, user_id=user_id)
         db.add(row)
 
     db.commit()

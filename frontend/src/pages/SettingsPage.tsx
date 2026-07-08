@@ -104,7 +104,7 @@ export function SettingsPage() {
                 onChange={(e) => update({ openai_api_key: e.target.value })}
                 style={inputStyle}
               />
-              <label style={labelStyle}>Base URL（含 /v1 后缀）</label>
+              <label style={labelStyle}>Base URL</label>
               <input
                 type="text"
                 placeholder="https://api.openai.com/v1"
@@ -121,7 +121,7 @@ export function SettingsPage() {
                 style={inputStyle}
               />
               <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                支持任意 OpenAI 兼容 API：DeepSeek、Ollama、vLLM 等。Base URL 需包含 /v1。
+                支持任意 OpenAI 兼容 API。
               </p>
             </div>
           )}

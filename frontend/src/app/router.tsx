@@ -6,6 +6,8 @@ import { EmailDetailPage } from '../pages/EmailDetailPage'
 import { DraftsPage } from '../pages/DraftsPage'
 import { RemindersPage } from '../pages/RemindersPage'
 import { SettingsPage } from '../pages/SettingsPage'
+import { LoginPage } from '../pages/LoginPage'
+import { RegisterPage } from '../pages/RegisterPage'
 
 export function AppRouter() {
   return (
@@ -18,6 +20,8 @@ export function AppRouter() {
         <Route path="/reminders" element={<RemindersPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
     </Routes>
   )
 }
