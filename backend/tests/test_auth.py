@@ -155,3 +155,43 @@ def test_data_isolation_between_users(client):
     # Cross-access A's email with B's token should return 404
     resp = client.get("/api/emails/1")
     assert resp.status_code == 404
+
+
+# ---- Logout behavior (client-side token removal) ----
+
+def test_logout_removes_token_from_header(client):
+    """Simulate frontend logout: remove Authorization header, requests become 401."""
+    r = client.post("/api/auth/register", json={"email": "logout@test.dev", "password": "123456"})
+    token = r.json()["access_token"]
+
+    # Authenticated request works
+    client.headers["Authorization"] = f"Bearer {token}"
+    resp = client.get("/api/auth/me")
+    assert resp.status_code == 200
+
+    # Simulate logout: clear the header
+    del client.headers["Authorization"]
+
+    # Unauthenticated request should be rejected
+    resp = client.get("/api/auth/me")
+    assert resp.status_code == 401
+
+
+def test_logout_does_not_invalidate_token(client):
+    """JWT cannot be revoked without a blacklist. After 'logout' the old token
+    still works on new requests if re-attached. This is expected JWT behavior."""
+    r = client.post("/api/auth/register", json={"email": "jwt@test.dev", "password": "123456"})
+    token = r.json()["access_token"]
+
+    # Use token successfully
+    client.headers["Authorization"] = f"Bearer {token}"
+    resp = client.get("/api/auth/me")
+    assert resp.status_code == 200
+
+    # Simulate logout (drop header)
+    del client.headers["Authorization"]
+
+    # Re-attach the same token - it still works (JWT is stateless)
+    client.headers["Authorization"] = f"Bearer {token}"
+    resp = client.get("/api/auth/me")
+    assert resp.status_code == 200
