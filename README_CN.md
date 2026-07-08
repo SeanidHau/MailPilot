@@ -59,14 +59,27 @@ pytest tests/ -v
 | 变量 | 默认值 | 说明 |
 |----------|---------|-------------|
 | `DATABASE_URL` | `postgresql://mailpilot:mailpilot@localhost:5432/mailpilot` | 数据库连接字符串 |
-| `AI_PROVIDER` | `mock` | AI 提供商（当前仅支持 `mock`） |
+| `AI_PROVIDER` | `mock` | 默认 AI 提供商（`mock`、`openai` 或 `anthropic`） |
 | `CORS_ORIGINS` | `http://localhost:5173` | 逗号分隔的跨域来源 |
+| `OPENAI_API_KEY` | 空 | 默认 OpenAI 兼容 API Key |
+| `OPENAI_BASE_URL` | `https://api.openai.com/v1` | 默认 OpenAI 兼容 Base URL |
+| `OPENAI_MODEL` | `gpt-4o` | 默认 OpenAI 兼容模型 |
+| `ANTHROPIC_API_KEY` | 空 | 默认 Anthropic API Key |
+| `ANTHROPIC_BASE_URL` | `https://api.anthropic.com` | 默认 Anthropic Base URL |
+| `ANTHROPIC_MODEL` | `claude-sonnet-4-5-20250929` | 默认 Anthropic 模型 |
+| `JWT_SECRET_KEY` | 未配置时自动生成 | JWT 签名密钥。非本地开发环境应配置稳定密钥 |
+| `ENCRYPTION_KEY` | 未配置时自动生成 | 用于加密存储 AI API Key 的 Fernet 密钥。必须保持稳定，否则重启后无法解密旧值 |
 | `VITE_API_BASE_URL` | `/api` | 前端 API 基础 URL |
 
 ## API 端点
 
 ### 健康检查
 - `GET /api/health`
+
+### 认证
+- `POST /api/auth/register` — 注册用户并返回 JWT
+- `POST /api/auth/login` — 登录并返回 JWT
+- `GET /api/auth/me` — 获取当前用户信息，需要 Bearer token
 
 ### 邮件
 - `POST /api/emails/import` — 导入模拟邮件数据
@@ -94,6 +107,10 @@ pytest tests/ -v
 ### 反馈
 - `GET /api/feedback` — 分类变更历史
 
+### 设置
+- `GET /api/settings/ai` — 读取 AI 提供商配置。已登录时读取当前用户配置，未登录时返回默认配置
+- `PUT /api/settings/ai` — 保存按用户隔离、加密存储的 AI 提供商配置，需要 Bearer token
+
 ## 邮件分类
 
 | 分类 | 说明 |
@@ -117,11 +134,11 @@ pytest tests/ -v
 
 ## MVP 局限性
 
-- 不支持 Gmail 或 Outlook 集成（仅支持 mock JSON 导入）
-- 无 OAuth 或多用户认证
-- 不支持自动发送邮件
-- 基于规则的 AI 提供商（关键词 + 正则）；尚未接入真实大模型
 - 无高级垃圾邮件检测模型
+- 尚未支持 Gmail 或 Outlook 集成；邮件数据仍来自 mock JSON 导入
+- 不支持自动发送邮件
+- 已有用户认证，但邮件、草稿、提醒、反馈等核心数据尚未完整按用户隔离
+- AI 提供商已可配置，但生产级观测、重试策略和成本控制尚未完善
 
 ## 技术栈
 
@@ -129,4 +146,50 @@ pytest tests/ -v
 
 **前端：** React 18、TypeScript、Vite、TanStack Query、React Router
 
-**AI：** 基于规则的 Mock 提供商，预留真实大模型 API 扩展接口
+**AI：** 基于规则的 Mock 提供商、OpenAI 兼容提供商、Anthropic 提供商
+
+## TODO
+
+### 账号与数据隐私
+
+- [ ] 为 `emails`、`drafts`、`reminders`、`classification_feedback` 增加 `user_id` 归属，并让所有列表、详情、更新、删除 API 按当前用户过滤。
+- [ ] 在加入用户级数据归属后，明确匿名/demo mock 邮件数据的使用方式。
+- [ ] 为需要登录的页面和操作增加前端路由保护，尤其是保存 AI 设置和后续真实邮箱数据相关功能。
+- [ ] 增加认证专项测试：注册、登录、`/auth/me`、重复注册、错误密码、过期/非法 token、退出登录。
+- [ ] 增加加密专项测试：验证 AI API Key 会加密落库，并能用稳定的 `ENCRYPTION_KEY` 正常解密。
+
+### 邮箱集成
+
+- [ ] 实现 Gmail OAuth 授权和 token 刷新。
+- [ ] 实现 Outlook/Microsoft Graph OAuth 授权和 token 刷新。
+- [ ] 增加邮箱同步任务：收件箱拉取、增量更新、已读/未读状态同步、按邮箱服务商 message ID 去重。
+- [ ] 增加手动 JSON 上传/导入 UI，而不是只能导入后端内置 mock 文件。
+- [ ] 增加附件元数据支持，并明确是否需要索引或摘要附件内容。
+
+### 邮件操作
+
+- [ ] 实现从已保存草稿发送真实邮件的可选流程，并加入明确的发送确认步骤。
+- [ ] 增加草稿发送状态，例如 `ready_to_send`、`sent`、`send_failed`。
+- [ ] 增加用户触发邮件操作和 AI 内容编辑的审计日志。
+
+### AI 可靠性
+
+- [ ] 为 OpenAI 兼容和 Anthropic 调用增加超时、重试、限流处理。
+- [ ] 当真实 AI 提供商失败时返回结构化错误，而不是只返回通用 fallback 文本。
+- [ ] 在核心数据完成用户隔离后，确保后台任务和服务调用也一致使用当前用户的 AI 提供商配置。
+- [ ] 为生成的摘要、草稿、分类和提醒提取结果记录 prompt/version 元数据。
+- [ ] 增加分类准确率、提醒提取质量、回复草稿质量的评估测试，覆盖当前 mock provider 单元测试之外的场景。
+
+### 产品与体验
+
+- [ ] 增加新用户引导，串联注册、mock 导入和 AI 提供商配置。
+- [ ] 用户未登录且尝试保存认证设置时，提供更清晰的设置页状态提示。
+- [ ] 在未导入任何邮件前，为仪表盘增加更好的空状态。
+- [ ] 对完整登录流程做响应式/移动端 QA。
+
+### 运维
+
+- [ ] 补充生产环境配置文档，说明稳定 `JWT_SECRET_KEY` 和 `ENCRYPTION_KEY` 的配置方式；轮换 `ENCRYPTION_KEY` 需要再加密方案。
+- [ ] 增加 CI：后端测试、前端类型检查/构建、基于全新 PostgreSQL 数据库的 Alembic 迁移验证。
+- [ ] 增加本地 demo 数据 seed/reset 命令。
+- [ ] 增加认证失败、AI 提供商失败、导入数量、提醒提取数量等日志和指标。

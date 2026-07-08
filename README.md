@@ -59,14 +59,27 @@ pytest tests/ -v
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `DATABASE_URL` | `postgresql://mailpilot:mailpilot@localhost:5432/mailpilot` | Database connection string |
-| `AI_PROVIDER` | `mock` | AI provider (currently only `mock` supported) |
+| `AI_PROVIDER` | `mock` | Default AI provider (`mock`, `openai`, or `anthropic`) |
 | `CORS_ORIGINS` | `http://localhost:5173` | Comma-separated CORS origins |
+| `OPENAI_API_KEY` | empty | Default OpenAI-compatible API key |
+| `OPENAI_BASE_URL` | `https://api.openai.com/v1` | Default OpenAI-compatible base URL |
+| `OPENAI_MODEL` | `gpt-4o` | Default OpenAI-compatible model |
+| `ANTHROPIC_API_KEY` | empty | Default Anthropic API key |
+| `ANTHROPIC_BASE_URL` | `https://api.anthropic.com` | Default Anthropic base URL |
+| `ANTHROPIC_MODEL` | `claude-sonnet-4-5-20250929` | Default Anthropic model |
+| `JWT_SECRET_KEY` | generated if unset | JWT signing key. Set a stable secret outside local development |
+| `ENCRYPTION_KEY` | generated if unset | Fernet key for encrypted stored AI API keys. Must be stable to decrypt saved values after restart |
 | `VITE_API_BASE_URL` | `/api` | Frontend API base URL |
 
 ## API Endpoints
 
 ### Health
 - `GET /api/health`
+
+### Auth
+- `POST /api/auth/register` — Register a user and return a JWT
+- `POST /api/auth/login` — Login and return a JWT
+- `GET /api/auth/me` — Current user profile, requires Bearer token
 
 ### Emails
 - `POST /api/emails/import` — Import mock email data
@@ -94,6 +107,10 @@ pytest tests/ -v
 ### Feedback
 - `GET /api/feedback` — Classification change history
 
+### Settings
+- `GET /api/settings/ai` — Read AI provider config. Uses the current user's config when authenticated, otherwise returns defaults
+- `PUT /api/settings/ai` — Save encrypted per-user AI provider config, requires Bearer token
+
 ## Email Categories
 
 | Category | Description |
@@ -117,11 +134,11 @@ pytest tests/ -v
 
 ## MVP Limitations
 
-- No Gmail or Outlook integration (mock JSON import only)
-- No OAuth or multi-user authentication
-- No automatic email sending
-- Rule-based AI provider (keywords + regex); no real LLM integration
 - No advanced spam detection model
+- No Gmail or Outlook integration yet; email data still comes from mock JSON import
+- No automatic email sending
+- User authentication exists, but the core email/draft/reminder/feedback data is not yet fully user-scoped
+- AI providers are configurable, but production-grade provider observability, retry policy, and cost controls are not complete
 
 ## Technology Stack
 
@@ -129,4 +146,50 @@ pytest tests/ -v
 
 **Frontend:** React 18, TypeScript, Vite, TanStack Query, React Router
 
-**AI:** Mock rule-based provider with extension points for real LLM APIs
+**AI:** Mock rule-based provider, OpenAI-compatible provider, and Anthropic provider
+
+## TODO
+
+### Account And Data Privacy
+
+- [ ] Add `user_id` ownership to `emails`, `drafts`, `reminders`, and `classification_feedback`, then filter all list/detail/update/delete APIs by the current user.
+- [ ] Decide how anonymous/demo mock email data should work after user-level data ownership is added.
+- [ ] Add frontend route guards for pages/actions that should require login, especially saving AI settings and future mailbox data.
+- [ ] Add auth-focused tests for register, login, `/auth/me`, duplicate registration, invalid password, expired/invalid token, and logout behavior.
+- [ ] Add encryption-focused tests that verify AI API keys are encrypted at rest and decrypt correctly with a stable `ENCRYPTION_KEY`.
+
+### Mailbox Integration
+
+- [ ] Implement Gmail OAuth authorization and token refresh.
+- [ ] Implement Outlook/Microsoft Graph OAuth authorization and token refresh.
+- [ ] Add mailbox sync jobs for inbox fetch, incremental updates, read/unread state, and deduplication by provider message ID.
+- [ ] Add manual JSON upload/import UI instead of only importing the bundled backend mock file.
+- [ ] Add attachment metadata support and decide whether attachment content should be indexed or summarized.
+
+### Email Actions
+
+- [ ] Implement optional real email sending from saved drafts, with an explicit confirmation step.
+- [ ] Add draft-to-send workflow state such as `ready_to_send`, `sent`, and `send_failed`.
+- [ ] Add audit logs for user-triggered email actions and AI-generated content edits.
+
+### AI Reliability
+
+- [ ] Add provider-level timeout, retry, and rate-limit handling for OpenAI-compatible and Anthropic calls.
+- [ ] Add structured error responses when real AI providers fail, instead of returning only generic fallback text.
+- [ ] Add per-user AI provider selection to background/service calls consistently once all data is user-scoped.
+- [ ] Add prompt/version metadata to generated summaries, drafts, classifications, and extracted reminders.
+- [ ] Add evaluation tests for classification accuracy, reminder extraction, and reply draft quality beyond the current mock-provider unit tests.
+
+### Product And UX
+
+- [ ] Add onboarding that guides first-time users through registration, mock import, and AI provider configuration.
+- [ ] Add clearer settings-state messaging when the user is not logged in and attempts to save authenticated settings.
+- [ ] Add better empty states for dashboards before any email import.
+- [ ] Add responsive/mobile QA for the full authenticated flow.
+
+### Operations
+
+- [ ] Document production setup for stable `JWT_SECRET_KEY` and `ENCRYPTION_KEY`; rotating `ENCRYPTION_KEY` requires a re-encryption plan.
+- [ ] Add CI jobs for backend tests, frontend typecheck/build, and Alembic migration verification on a fresh PostgreSQL database.
+- [ ] Add seed/reset commands for local demo data.
+- [ ] Add logging/metrics for auth failures, AI provider failures, import counts, and reminder extraction counts.
