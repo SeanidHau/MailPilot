@@ -93,12 +93,12 @@ def patch_email(db: Session, email_id: int, updates: dict) -> Email | None:
     return email
 
 
-def classify_email(db: Session, email_id: int):
+def classify_email(db: Session, email_id: int, user_id: int | None = None):
     email = db.query(Email).filter(Email.id == email_id).first()
     if not email:
         return None
 
-    provider = get_ai_provider(db)
+    provider = get_ai_provider(db, user_id)
     category, score = provider.classify_email({
         "subject": email.subject,
         "body": email.body,
@@ -112,12 +112,12 @@ def classify_email(db: Session, email_id: int):
     return email
 
 
-def summarize_email(db: Session, email_id: int):
+def summarize_email(db: Session, email_id: int, user_id: int | None = None):
     email = db.query(Email).filter(Email.id == email_id).first()
     if not email:
         return None
 
-    provider = get_ai_provider(db)
+    provider = get_ai_provider(db, user_id)
     summary = provider.summarize_email({
         "subject": email.subject,
         "body": email.body,

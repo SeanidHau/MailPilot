@@ -8,6 +8,7 @@ from app.db.session import get_db
 from app.schemas.email import ImportResponse, EmailResponse, EmailListResponse, EmailPatchRequest, EmailDetailResponse
 from app.schemas.ai import ClassifyResponse, SummarizeResponse, GenerateDraftRequest, GenerateDraftResponse, ExtractRemindersResponse
 from app.services import email_service, draft_service, reminder_service
+from app.api.deps import get_current_user
 
 router = APIRouter()
 
@@ -54,32 +55,32 @@ def patch_email(email_id: int, body: EmailPatchRequest, db: Session = Depends(ge
 
 
 @router.post("/emails/{email_id}/classify", response_model=ClassifyResponse)
-def classify_email(email_id: int, db: Session = Depends(get_db)):
-    email = email_service.classify_email(db, email_id)
+def classify_email(email_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    email = email_service.classify_email(db, email_id, user.id if user else None)
     if not email:
         raise HTTPException(status_code=404, detail="Email not found")
     return {"category": email.category, "importance_score": email.importance_score}
 
 
 @router.post("/emails/{email_id}/summarize", response_model=SummarizeResponse)
-def summarize_email(email_id: int, db: Session = Depends(get_db)):
-    email = email_service.summarize_email(db, email_id)
+def summarize_email(email_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    email = email_service.summarize_email(db, email_id, user.id if user else None)
     if not email:
         raise HTTPException(status_code=404, detail="Email not found")
     return {"summary": email.summary}
 
 
 @router.post("/emails/{email_id}/drafts", response_model=GenerateDraftResponse)
-def create_draft(email_id: int, body: GenerateDraftRequest, db: Session = Depends(get_db)):
-    draft = draft_service.generate_draft(db, email_id, body.tone.value)
+def create_draft(email_id: int, body: GenerateDraftRequest, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    draft = draft_service.generate_draft(db, email_id, body.tone.value, user.id if user else None)
     if not draft:
         raise HTTPException(status_code=404, detail="Email not found")
     return {"id": draft.id, "tone": draft.tone, "content": draft.content}
 
 
 @router.post("/emails/{email_id}/reminders/extract", response_model=ExtractRemindersResponse)
-def extract_reminders(email_id: int, db: Session = Depends(get_db)):
-    items = reminder_service.extract_reminders(db, email_id)
+def extract_reminders(email_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    items = reminder_service.extract_reminders(db, email_id, user.id if user else None)
     if items is None:
         raise HTTPException(status_code=404, detail="Email not found")
     return {

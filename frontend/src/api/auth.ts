@@ -8,12 +8,14 @@ export interface AuthUser {
 export async function login(email: string, password: string): Promise<{ access_token: string }> {
   const { data } = await api.post('/auth/login', { email, password });
   localStorage.setItem('token', data.access_token);
+  api.defaults.headers.common['Authorization'] = `Bearer ${data.access_token}`;
   return data;
 }
 
 export async function register(email: string, password: string): Promise<{ access_token: string }> {
   const { data } = await api.post('/auth/register', { email, password });
   localStorage.setItem('token', data.access_token);
+  api.defaults.headers.common['Authorization'] = `Bearer ${data.access_token}`;
   return data;
 }
 
@@ -28,6 +30,7 @@ export function getToken(): string | null {
 
 export function clearToken() {
   localStorage.removeItem('token');
+  delete api.defaults.headers.common['Authorization'];
 }
 
 // Set default auth header if token exists

@@ -28,12 +28,12 @@ def patch_draft(db: Session, draft_id: int, updates: dict) -> Draft | None:
     return draft
 
 
-def generate_draft(db: Session, email_id: int, tone: str):
+def generate_draft(db: Session, email_id: int, tone: str, user_id: int | None = None):
     email = db.query(Email).filter(Email.id == email_id).first()
     if not email:
         return None
 
-    provider = get_ai_provider(db)
+    provider = get_ai_provider(db, user_id)
     content = provider.generate_reply({
         "subject": email.subject,
         "body": email.body,

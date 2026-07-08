@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import secrets
+import logging
 from datetime import datetime, timedelta, timezone
 import bcrypt
 from jose import jwt, JWTError
@@ -8,7 +10,17 @@ from sqlalchemy.orm import Session
 from app.db.models import User
 from app.core.config import settings
 
+logger = logging.getLogger(__name__)
+
 SECRET_KEY = settings.jwt_secret_key
+if SECRET_KEY == "change-me-in-production":
+    SECRET_KEY = secrets.token_hex(32)
+    logger.warning(
+        "JWT_SECRET_KEY is still the default placeholder. "
+        "A random temporary key has been generated for this session. "
+        "Set JWT_SECRET_KEY in .env for production."
+    )
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 1 week
 

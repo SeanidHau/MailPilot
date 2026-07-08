@@ -43,12 +43,12 @@ def delete_reminder(db: Session, reminder_id: int):
     return reminder
 
 
-def extract_reminders(db: Session, email_id: int):
+def extract_reminders(db: Session, email_id: int, user_id: int | None = None):
     email = db.query(Email).filter(Email.id == email_id).first()
     if not email:
         return None
 
-    provider = get_ai_provider(db)
+    provider = get_ai_provider(db, user_id)
     items = provider.extract_reminders({
         "subject": email.subject,
         "body": email.body,
