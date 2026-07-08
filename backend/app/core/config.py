@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     # Auth
     jwt_secret_key: str = "change-me-in-production"
 
+    # Encryption key for sensitive stored data (Fernet key, auto-generated if unset)
+    encryption_key: str = ""
+
     model_config = {"env_file": ".env"}
 
 
