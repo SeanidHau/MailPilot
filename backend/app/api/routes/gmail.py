@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -24,24 +24,50 @@ def _oauth_error(exc: GmailOAuthError) -> HTTPException:
 
 
 @router.get("/gmail/authorize", response_model=GmailAuthorizeResponse)
-def authorize_gmail(user: User = Depends(require_user)):
+def authorize_gmail(response: Response, user: User = Depends(require_user)):
     try:
-        return {"authorization_url": gmail_service.build_authorization_url(user.id)}
+        nonce = gmail_service.create_oauth_nonce()
+        response.set_cookie(
+            gmail_service.OAUTH_STATE_COOKIE,
+            nonce,
+            httponly=True,
+            secure=settings.gmail_redirect_uri.startswith("https://"),
+            samesite="lax",
+            max_age=gmail_service.STATE_EXPIRE_MINUTES * 60,
+            path="/api/gmail/oauth/callback",
+        )
+        return {"authorization_url": gmail_service.build_authorization_url(user.id, nonce)}
     except GmailOAuthError as exc:
         raise _oauth_error(exc)
 
 
 @router.get("/gmail/oauth/callback")
 def gmail_oauth_callback(
-    code: str = Query(...),
-    state: str = Query(...),
+    request: Request,
+    code: str | None = Query(None),
+    state: str | None = Query(None),
+    error: str | None = Query(None),
     db: Session = Depends(get_db),
 ):
+    def redirect_failure():
+        response = RedirectResponse(settings.gmail_oauth_failure_url)
+        response.delete_cookie(gmail_service.OAUTH_STATE_COOKIE, path="/api/gmail/oauth/callback")
+        return response
+
+    if error or not code or not state:
+        return redirect_failure()
+
+    nonce = request.cookies.get(gmail_service.OAUTH_STATE_COOKIE)
+    if not nonce:
+        return redirect_failure()
+
     try:
-        gmail_service.exchange_code_for_tokens(db, code, state)
-        return RedirectResponse(settings.gmail_oauth_success_url)
+        gmail_service.exchange_code_for_tokens(db, code, state, nonce)
+        response = RedirectResponse(settings.gmail_oauth_success_url)
+        response.delete_cookie(gmail_service.OAUTH_STATE_COOKIE, path="/api/gmail/oauth/callback")
+        return response
     except GmailOAuthError:
-        return RedirectResponse(settings.gmail_oauth_failure_url)
+        return redirect_failure()
 
 
 @router.get("/gmail/status", response_model=GmailStatusResponse)

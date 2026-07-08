@@ -22,6 +22,7 @@ GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
 STATE_EXPIRE_MINUTES = 10
 TOKEN_REFRESH_SKEW_SECONDS = 60
+OAUTH_STATE_COOKIE = "gmail_oauth_nonce"
 
 
 class GmailOAuthError(Exception):
@@ -51,31 +52,36 @@ def _from_db_datetime(value: datetime | None) -> datetime | None:
     return value.astimezone(timezone.utc)
 
 
-def create_oauth_state(user_id: int) -> str:
+def create_oauth_nonce() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def create_oauth_state(user_id: int, nonce: str) -> str:
     expire = _utcnow() + timedelta(minutes=STATE_EXPIRE_MINUTES)
-    payload = {"sub": str(user_id), "nonce": secrets.token_urlsafe(16), "exp": expire}
+    payload = {"sub": str(user_id), "nonce": nonce, "exp": expire}
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def parse_oauth_state(state: str) -> int:
+def parse_oauth_state(state: str, expected_nonce: str) -> int:
     try:
         payload = jwt.decode(state, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = payload.get("sub")
-        if not user_id:
+        nonce = payload.get("nonce")
+        if not user_id or not nonce or nonce != expected_nonce:
             raise GmailOAuthError("Invalid OAuth state")
         return int(user_id)
     except (JWTError, ValueError) as exc:
         raise GmailOAuthError("Invalid OAuth state") from exc
 
 
-def build_authorization_url(user_id: int) -> str:
+def build_authorization_url(user_id: int, nonce: str) -> str:
     _require_oauth_config()
     params = {
         "client_id": settings.gmail_client_id,
         "redirect_uri": settings.gmail_redirect_uri,
         "response_type": "code",
         "scope": settings.gmail_scopes,
-        "state": create_oauth_state(user_id),
+        "state": create_oauth_state(user_id, nonce),
         "access_type": "offline",
         "prompt": "consent",
         "include_granted_scopes": "true",
@@ -146,9 +152,9 @@ def save_token_response(db: Session, user_id: int, token_data: dict[str, Any]) -
     return row
 
 
-def exchange_code_for_tokens(db: Session, code: str, state: str) -> GmailAccount:
+def exchange_code_for_tokens(db: Session, code: str, state: str, expected_nonce: str) -> GmailAccount:
     _require_oauth_config()
-    user_id = parse_oauth_state(state)
+    user_id = parse_oauth_state(state, expected_nonce)
     token_data = _post_token_request(
         {
             "client_id": settings.gmail_client_id,
