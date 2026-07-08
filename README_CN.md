@@ -155,7 +155,7 @@ pytest tests/ -v
 - [x] 为 `emails`、`drafts`、`reminders`、`classification_feedback` 增加 `user_id` 归属，并让所有列表、详情、更新、删除 API 按当前用户过滤。
 - [x] 在加入用户级数据归属后，明确匿名/demo mock 邮件数据的使用方式。
 - [x] 为需要登录的页面和操作增加前端路由保护，尤其是保存 AI 设置和后续真实邮箱数据相关功能。
-- [ ] 增加认证专项测试：注册、登录、`/auth/me`、重复注册、错误密码、过期/非法 token、退出登录。
+- [x] 增加认证专项测试：注册、登录、`/auth/me`、重复注册、错误密码、过期/非法 token、退出登录。
 - [ ] 增加加密专项测试：验证 AI API Key 会加密落库，并能用稳定的 `ENCRYPTION_KEY` 正常解密。
 
 ### 邮箱集成
