@@ -154,7 +154,7 @@ pytest tests/ -v
 
 - [x] Add `user_id` ownership to `emails`, `drafts`, `reminders`, and `classification_feedback`, then filter all list/detail/update/delete APIs by the current user.
 - [x] Decide how anonymous/demo mock email data should work after user-level data ownership is added.
-- [x] Add frontend route guards for pages/actions that should require login, especially saving AI settings and future mailbox data.
+- [ ] Add frontend route guards for pages/actions that should require login, especially saving AI settings and future mailbox data.
 - [ ] Add auth-focused tests for register, login, `/auth/me`, duplicate registration, invalid password, expired/invalid token, and logout behavior.
 - [ ] Add encryption-focused tests that verify AI API keys are encrypted at rest and decrypt correctly with a stable `ENCRYPTION_KEY`.
 
