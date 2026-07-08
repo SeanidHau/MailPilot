@@ -12,13 +12,7 @@ from app.services.ai_service import get_ai_provider
 MOCK_DATA_PATH = Path(__file__).parent.parent / "mock_data" / "emails.json"
 
 
-def _user_filter(query, user_id: Optional[int]):
-    if user_id is not None:
-        return query.filter(Email.user_id == user_id)
-    return query
-
-
-def import_mock_emails(db: Session, user_id: Optional[int] = None) -> int:
+def import_mock_emails(db: Session, user_id: int) -> int:
     with open(MOCK_DATA_PATH) as f:
         emails_data = json.load(f)
 
@@ -26,9 +20,7 @@ def import_mock_emails(db: Session, user_id: Optional[int] = None) -> int:
 
     imported = 0
     for data in emails_data:
-        q = db.query(Email).filter(Email.message_id == data["message_id"])
-        if user_id is not None:
-            q = q.filter(Email.user_id == user_id)
+        q = db.query(Email).filter(Email.message_id == data["message_id"], Email.user_id == user_id)
         if q.first():
             continue
         if isinstance(data.get("received_at"), str):
@@ -43,7 +35,7 @@ def import_mock_emails(db: Session, user_id: Optional[int] = None) -> int:
 
 def get_emails(
     db: Session,
-    user_id: Optional[int] = None,
+    user_id: int,
     q: Optional[str] = None,
     category: Optional[str] = None,
     is_read: Optional[bool] = None,
@@ -52,9 +44,7 @@ def get_emails(
     page: int = 1,
     page_size: int = 20,
 ):
-    query = db.query(Email)
-    if user_id is not None:
-        query = query.filter(Email.user_id == user_id)
+    query = db.query(Email).filter(Email.user_id == user_id)
 
     if q:
         like = f"%{q}%"
@@ -75,18 +65,12 @@ def get_emails(
     return items, total
 
 
-def get_email_detail(db: Session, email_id: int, user_id: Optional[int] = None) -> Email | None:
-    query = db.query(Email).filter(Email.id == email_id)
-    if user_id is not None:
-        query = query.filter(Email.user_id == user_id)
-    return query.first()
+def get_email_detail(db: Session, email_id: int, user_id: int) -> Email | None:
+    return db.query(Email).filter(Email.id == email_id, Email.user_id == user_id).first()
 
 
-def patch_email(db: Session, email_id: int, updates: dict, user_id: Optional[int] = None) -> Email | None:
-    query = db.query(Email).filter(Email.id == email_id)
-    if user_id is not None:
-        query = query.filter(Email.user_id == user_id)
-    email = query.first()
+def patch_email(db: Session, email_id: int, updates: dict, user_id: int) -> Email | None:
+    email = db.query(Email).filter(Email.id == email_id, Email.user_id == user_id).first()
     if not email:
         return None
 
@@ -109,11 +93,8 @@ def patch_email(db: Session, email_id: int, updates: dict, user_id: Optional[int
     return email
 
 
-def classify_email(db: Session, email_id: int, user_id: int | None = None):
-    query = db.query(Email).filter(Email.id == email_id)
-    if user_id is not None:
-        query = query.filter(Email.user_id == user_id)
-    email = query.first()
+def classify_email(db: Session, email_id: int, user_id: int):
+    email = db.query(Email).filter(Email.id == email_id, Email.user_id == user_id).first()
     if not email:
         return None
 
@@ -131,11 +112,8 @@ def classify_email(db: Session, email_id: int, user_id: int | None = None):
     return email
 
 
-def summarize_email(db: Session, email_id: int, user_id: int | None = None):
-    query = db.query(Email).filter(Email.id == email_id)
-    if user_id is not None:
-        query = query.filter(Email.user_id == user_id)
-    email = query.first()
+def summarize_email(db: Session, email_id: int, user_id: int):
+    email = db.query(Email).filter(Email.id == email_id, Email.user_id == user_id).first()
     if not email:
         return None
 

@@ -1,17 +1,13 @@
 from __future__ import annotations
-from typing import Optional
 
 from sqlalchemy.orm import Session
 
 from app.db.models import Email, Reminder
 
 
-def get_dashboard_summary(db: Session, user_id: Optional[int] = None):
-    email_q = db.query(Email)
-    reminder_q = db.query(Reminder)
-    if user_id is not None:
-        email_q = email_q.filter(Email.user_id == user_id)
-        reminder_q = reminder_q.filter(Reminder.user_id == user_id)
+def get_dashboard_summary(db: Session, user_id: int):
+    email_q = db.query(Email).filter(Email.user_id == user_id)
+    reminder_q = db.query(Reminder).filter(Reminder.user_id == user_id)
 
     pending_emails = email_q.filter(Email.is_read == False).count()
     important_emails = email_q.filter(Email.importance_score >= 4).count()

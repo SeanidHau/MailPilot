@@ -1,5 +1,4 @@
 from __future__ import annotations
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
@@ -7,13 +6,9 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.schemas.draft import DraftResponse, DraftListResponse, DraftPatchRequest
 from app.services import draft_service
-from app.api.deps import get_current_user
+from app.api.deps import require_user
 
 router = APIRouter()
-
-
-def _uid(user) -> Optional[int]:
-    return user.id if user else None
 
 
 @router.get("/drafts", response_model=DraftListResponse)
@@ -21,23 +16,23 @@ def list_drafts(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
-    user=Depends(get_current_user),
+    user=Depends(require_user),
 ):
-    items, total = draft_service.get_drafts(db, user_id=_uid(user), page=page, page_size=page_size)
+    items, total = draft_service.get_drafts(db, user_id=user.id, page=page, page_size=page_size)
     return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 
 @router.get("/drafts/{draft_id}", response_model=DraftResponse)
-def get_draft(draft_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    draft = draft_service.get_draft(db, draft_id, _uid(user))
+def get_draft(draft_id: int, db: Session = Depends(get_db), user=Depends(require_user)):
+    draft = draft_service.get_draft(db, draft_id, user.id)
     if not draft:
         raise HTTPException(status_code=404, detail="Draft not found")
     return draft
 
 
 @router.patch("/drafts/{draft_id}", response_model=DraftResponse)
-def patch_draft(draft_id: int, body: DraftPatchRequest, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    draft = draft_service.patch_draft(db, draft_id, body.model_dump(exclude_unset=True), _uid(user))
+def patch_draft(draft_id: int, body: DraftPatchRequest, db: Session = Depends(get_db), user=Depends(require_user)):
+    draft = draft_service.patch_draft(db, draft_id, body.model_dump(exclude_unset=True), user.id)
     if not draft:
         raise HTTPException(status_code=404, detail="Draft not found")
     return draft
