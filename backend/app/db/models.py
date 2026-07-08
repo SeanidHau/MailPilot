@@ -11,7 +11,7 @@ class Email(Base):
     __tablename__ = "emails"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    message_id: Mapped[str] = mapped_column(String(256), unique=True, index=True)
+    message_id: Mapped[str] = mapped_column(String(256), index=True)
     sender: Mapped[str] = mapped_column(String(256))
     recipients: Mapped[str] = mapped_column(Text)
     subject: Mapped[str] = mapped_column(String(512))
@@ -25,6 +25,8 @@ class Email(Base):
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True, default=None, index=True)
+
     drafts: Mapped[list["Draft"]] = relationship(back_populates="email", cascade="all, delete-orphan")
     reminders: Mapped[list["Reminder"]] = relationship(back_populates="email", cascade="all, delete-orphan")
 
@@ -34,6 +36,7 @@ class Draft(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     email_id: Mapped[int] = mapped_column(ForeignKey("emails.id"))
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True, default=None, index=True)
     tone: Mapped[str] = mapped_column(String(32))
     content: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(16), default="draft")
@@ -48,6 +51,7 @@ class Reminder(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     email_id: Mapped[int] = mapped_column(ForeignKey("emails.id"))
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True, default=None, index=True)
     title: Mapped[str] = mapped_column(String(256))
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     due_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True)
@@ -64,6 +68,7 @@ class ClassificationFeedback(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     email_id: Mapped[int] = mapped_column(ForeignKey("emails.id"))
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True, default=None, index=True)
     old_category: Mapped[str] = mapped_column(String(32))
     new_category: Mapped[str] = mapped_column(String(32))
     reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

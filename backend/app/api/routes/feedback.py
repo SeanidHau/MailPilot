@@ -1,9 +1,13 @@
+from __future__ import annotations
+from typing import Optional
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.schemas.feedback import FeedbackListResponse
 from app.services import feedback_service
+from app.api.deps import get_current_user
 
 router = APIRouter()
 
@@ -13,6 +17,7 @@ def list_feedback(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
+    user=Depends(get_current_user),
 ):
-    items, total = feedback_service.get_feedback(db, page=page, page_size=page_size)
+    items, total = feedback_service.get_feedback(db, user.id if user else None, page=page, page_size=page_size)
     return {"items": items, "total": total, "page": page, "page_size": page_size}

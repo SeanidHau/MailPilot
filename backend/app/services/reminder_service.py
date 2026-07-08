@@ -7,8 +7,10 @@ from app.db.models import Reminder, Email
 from app.services.ai_service import get_ai_provider
 
 
-def get_reminders(db: Session, status: Optional[str] = None, page: int = 1, page_size: int = 20):
+def get_reminders(db: Session, user_id: Optional[int] = None, status: Optional[str] = None, page: int = 1, page_size: int = 20):
     query = db.query(Reminder)
+    if user_id is not None:
+        query = query.filter(Reminder.user_id == user_id)
     if status:
         query = query.filter(Reminder.status == status)
     else:
@@ -18,12 +20,18 @@ def get_reminders(db: Session, status: Optional[str] = None, page: int = 1, page
     return items, total
 
 
-def get_reminder(db: Session, reminder_id: int) -> Reminder | None:
-    return db.query(Reminder).filter(Reminder.id == reminder_id).first()
+def get_reminder(db: Session, reminder_id: int, user_id: Optional[int] = None) -> Reminder | None:
+    query = db.query(Reminder).filter(Reminder.id == reminder_id)
+    if user_id is not None:
+        query = query.filter(Reminder.user_id == user_id)
+    return query.first()
 
 
-def patch_reminder(db: Session, reminder_id: int, updates: dict) -> Reminder | None:
-    reminder = db.query(Reminder).filter(Reminder.id == reminder_id).first()
+def patch_reminder(db: Session, reminder_id: int, updates: dict, user_id: Optional[int] = None) -> Reminder | None:
+    query = db.query(Reminder).filter(Reminder.id == reminder_id)
+    if user_id is not None:
+        query = query.filter(Reminder.user_id == user_id)
+    reminder = query.first()
     if not reminder:
         return None
     for key, value in updates.items():
@@ -34,8 +42,11 @@ def patch_reminder(db: Session, reminder_id: int, updates: dict) -> Reminder | N
     return reminder
 
 
-def delete_reminder(db: Session, reminder_id: int):
-    reminder = db.query(Reminder).filter(Reminder.id == reminder_id).first()
+def delete_reminder(db: Session, reminder_id: int, user_id: Optional[int] = None):
+    query = db.query(Reminder).filter(Reminder.id == reminder_id)
+    if user_id is not None:
+        query = query.filter(Reminder.user_id == user_id)
+    reminder = query.first()
     if not reminder:
         return None
     reminder.status = "deleted"
@@ -44,7 +55,10 @@ def delete_reminder(db: Session, reminder_id: int):
 
 
 def extract_reminders(db: Session, email_id: int, user_id: int | None = None):
-    email = db.query(Email).filter(Email.id == email_id).first()
+    query = db.query(Email).filter(Email.id == email_id)
+    if user_id is not None:
+        query = query.filter(Email.user_id == user_id)
+    email = query.first()
     if not email:
         return None
 
@@ -71,6 +85,7 @@ def extract_reminders(db: Session, email_id: int, user_id: int | None = None):
             description=item.get("description"),
             due_at=due_at,
             reminder_type=item["reminder_type"],
+            user_id=user_id,
         )
         db.add(reminder)
         created.append(reminder)

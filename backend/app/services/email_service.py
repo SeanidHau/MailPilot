@@ -1,19 +1,24 @@
 from __future__ import annotations
 import json
 from pathlib import Path
-
 from typing import Optional
+
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
 from app.db.models import Email, ClassificationFeedback
 from app.services.ai_service import get_ai_provider
 
-
 MOCK_DATA_PATH = Path(__file__).parent.parent / "mock_data" / "emails.json"
 
 
-def import_mock_emails(db: Session) -> int:
+def _user_filter(query, user_id: Optional[int]):
+    if user_id is not None:
+        return query.filter(Email.user_id == user_id)
+    return query
+
+
+def import_mock_emails(db: Session, user_id: Optional[int] = None) -> int:
     with open(MOCK_DATA_PATH) as f:
         emails_data = json.load(f)
 
@@ -21,12 +26,14 @@ def import_mock_emails(db: Session) -> int:
 
     imported = 0
     for data in emails_data:
-        existing = db.query(Email).filter(Email.message_id == data["message_id"]).first()
-        if existing:
+        q = db.query(Email).filter(Email.message_id == data["message_id"])
+        if user_id is not None:
+            q = q.filter(Email.user_id == user_id)
+        if q.first():
             continue
         if isinstance(data.get("received_at"), str):
             data["received_at"] = dt.fromisoformat(data["received_at"])
-        email = Email(**data)
+        email = Email(**data, user_id=user_id)
         db.add(email)
         imported += 1
 
@@ -36,6 +43,7 @@ def import_mock_emails(db: Session) -> int:
 
 def get_emails(
     db: Session,
+    user_id: Optional[int] = None,
     q: Optional[str] = None,
     category: Optional[str] = None,
     is_read: Optional[bool] = None,
@@ -45,6 +53,8 @@ def get_emails(
     page_size: int = 20,
 ):
     query = db.query(Email)
+    if user_id is not None:
+        query = query.filter(Email.user_id == user_id)
 
     if q:
         like = f"%{q}%"
@@ -62,16 +72,21 @@ def get_emails(
 
     total = query.count()
     items = query.order_by(Email.received_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
-
     return items, total
 
 
-def get_email_detail(db: Session, email_id: int) -> Email | None:
-    return db.query(Email).filter(Email.id == email_id).first()
+def get_email_detail(db: Session, email_id: int, user_id: Optional[int] = None) -> Email | None:
+    query = db.query(Email).filter(Email.id == email_id)
+    if user_id is not None:
+        query = query.filter(Email.user_id == user_id)
+    return query.first()
 
 
-def patch_email(db: Session, email_id: int, updates: dict) -> Email | None:
-    email = db.query(Email).filter(Email.id == email_id).first()
+def patch_email(db: Session, email_id: int, updates: dict, user_id: Optional[int] = None) -> Email | None:
+    query = db.query(Email).filter(Email.id == email_id)
+    if user_id is not None:
+        query = query.filter(Email.user_id == user_id)
+    email = query.first()
     if not email:
         return None
 
@@ -85,6 +100,7 @@ def patch_email(db: Session, email_id: int, updates: dict) -> Email | None:
             email_id=email.id,
             old_category=old_category,
             new_category=updates["category"],
+            user_id=user_id,
         )
         db.add(fb)
 
@@ -94,7 +110,10 @@ def patch_email(db: Session, email_id: int, updates: dict) -> Email | None:
 
 
 def classify_email(db: Session, email_id: int, user_id: int | None = None):
-    email = db.query(Email).filter(Email.id == email_id).first()
+    query = db.query(Email).filter(Email.id == email_id)
+    if user_id is not None:
+        query = query.filter(Email.user_id == user_id)
+    email = query.first()
     if not email:
         return None
 
@@ -113,7 +132,10 @@ def classify_email(db: Session, email_id: int, user_id: int | None = None):
 
 
 def summarize_email(db: Session, email_id: int, user_id: int | None = None):
-    email = db.query(Email).filter(Email.id == email_id).first()
+    query = db.query(Email).filter(Email.id == email_id)
+    if user_id is not None:
+        query = query.filter(Email.user_id == user_id)
+    email = query.first()
     if not email:
         return None
 

@@ -7,8 +7,13 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.schemas.reminder import ReminderResponse, ReminderListResponse, ReminderPatchRequest, DeleteReminderResponse
 from app.services import reminder_service
+from app.api.deps import get_current_user
 
 router = APIRouter()
+
+
+def _uid(user) -> Optional[int]:
+    return user.id if user else None
 
 
 @router.get("/reminders", response_model=ReminderListResponse)
@@ -17,30 +22,31 @@ def list_reminders(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
+    user=Depends(get_current_user),
 ):
-    items, total = reminder_service.get_reminders(db, status=status, page=page, page_size=page_size)
+    items, total = reminder_service.get_reminders(db, user_id=_uid(user), status=status, page=page, page_size=page_size)
     return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 
 @router.get("/reminders/{reminder_id}", response_model=ReminderResponse)
-def get_reminder(reminder_id: int, db: Session = Depends(get_db)):
-    reminder = reminder_service.get_reminder(db, reminder_id)
+def get_reminder(reminder_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    reminder = reminder_service.get_reminder(db, reminder_id, _uid(user))
     if not reminder:
         raise HTTPException(status_code=404, detail="Reminder not found")
     return reminder
 
 
 @router.patch("/reminders/{reminder_id}", response_model=ReminderResponse)
-def patch_reminder(reminder_id: int, body: ReminderPatchRequest, db: Session = Depends(get_db)):
-    reminder = reminder_service.patch_reminder(db, reminder_id, body.model_dump(exclude_unset=True))
+def patch_reminder(reminder_id: int, body: ReminderPatchRequest, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    reminder = reminder_service.patch_reminder(db, reminder_id, body.model_dump(exclude_unset=True), _uid(user))
     if not reminder:
         raise HTTPException(status_code=404, detail="Reminder not found")
     return reminder
 
 
 @router.delete("/reminders/{reminder_id}", response_model=DeleteReminderResponse)
-def delete_reminder(reminder_id: int, db: Session = Depends(get_db)):
-    reminder = reminder_service.delete_reminder(db, reminder_id)
+def delete_reminder(reminder_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    reminder = reminder_service.delete_reminder(db, reminder_id, _uid(user))
     if not reminder:
         raise HTTPException(status_code=404, detail="Reminder not found")
     return {"status": "deleted"}
