@@ -92,3 +92,18 @@ class Setting(Base):
     key: Mapped[str] = mapped_column(String(128))
     value: Mapped[str] = mapped_column(Text)
     updated_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class GmailAccount(Base):
+    __tablename__ = "gmail_accounts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True, index=True)
+    email: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    access_token: Mapped[str] = mapped_column(Text)
+    refresh_token: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    token_type: Mapped[str] = mapped_column(String(32), default="Bearer")
+    scopes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    expires_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True)
+    connected_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
