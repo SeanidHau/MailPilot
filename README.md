@@ -137,7 +137,7 @@ pytest tests/ -v
 - No advanced spam detection model
 - No Gmail or Outlook integration yet; email data still comes from mock JSON import
 - No automatic email sending
-- User authentication exists, but the core email/draft/reminder/feedback data is not yet fully user-scoped
+- User authentication exists with per-user data isolation; unauthenticated access to data APIs returns 401
 - AI providers are configurable, but production-grade provider observability, retry policy, and cost controls are not complete
 
 ## Technology Stack
@@ -152,9 +152,9 @@ pytest tests/ -v
 
 ### Account And Data Privacy
 
-- [ ] Add `user_id` ownership to `emails`, `drafts`, `reminders`, and `classification_feedback`, then filter all list/detail/update/delete APIs by the current user.
-- [ ] Decide how anonymous/demo mock email data should work after user-level data ownership is added.
-- [ ] Add frontend route guards for pages/actions that should require login, especially saving AI settings and future mailbox data.
+- [x] Add `user_id` ownership to `emails`, `drafts`, `reminders`, and `classification_feedback`, then filter all list/detail/update/delete APIs by the current user.
+- [x] Decide how anonymous/demo mock email data should work after user-level data ownership is added.
+- [x] Add frontend route guards for pages/actions that should require login, especially saving AI settings and future mailbox data.
 - [ ] Add auth-focused tests for register, login, `/auth/me`, duplicate registration, invalid password, expired/invalid token, and logout behavior.
 - [ ] Add encryption-focused tests that verify AI API keys are encrypted at rest and decrypt correctly with a stable `ENCRYPTION_KEY`.
 
@@ -176,7 +176,7 @@ pytest tests/ -v
 
 - [ ] Add provider-level timeout, retry, and rate-limit handling for OpenAI-compatible and Anthropic calls.
 - [ ] Add structured error responses when real AI providers fail, instead of returning only generic fallback text.
-- [ ] Add per-user AI provider selection to background/service calls consistently once all data is user-scoped.
+- [x] Add per-user AI provider selection to background/service calls consistently once all data is user-scoped.
 - [ ] Add prompt/version metadata to generated summaries, drafts, classifications, and extracted reminders.
 - [ ] Add evaluation tests for classification accuracy, reminder extraction, and reply draft quality beyond the current mock-provider unit tests.
 
