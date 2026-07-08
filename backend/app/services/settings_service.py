@@ -41,7 +41,11 @@ def get_ai_config(db: Session, user_id: Optional[int] = None) -> dict:
 
 
 def save_ai_config(db: Session, config: dict, user_id: Optional[int] = None) -> dict:
-    merged = {**DEFAULT_AI_CONFIG, **config}
+    # Read existing config first so partial updates don't overwrite other keys
+    existing = get_ai_config(db, user_id)
+    # Filter out empty strings from the request to avoid overwriting stored values
+    clean_config = {k: v for k, v in config.items() if v != "" or k not in SENSITIVE_KEYS}
+    merged = {**DEFAULT_AI_CONFIG, **existing, **clean_config}
     for k in SENSITIVE_KEYS:
         if merged.get(k):
             merged[k] = crypto.encrypt(merged[k])
