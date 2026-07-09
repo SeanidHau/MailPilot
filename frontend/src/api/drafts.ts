@@ -20,3 +20,8 @@ export async function patchDraft(id: number, body: DraftPatchRequest): Promise<D
   const { data } = await api.patch(`/drafts/${id}`, body);
   return data;
 }
+
+export async function sendDraft(id: number): Promise<DraftResponse> {
+  const { data } = await api.post(`/drafts/${id}/send`);
+  return data;
+}

@@ -35,3 +35,6 @@ class ReminderStatus(str, Enum):
 class DraftStatus(str, Enum):
     draft = "draft"
     saved = "saved"
+    ready_to_send = "ready_to_send"
+    sent = "sent"
+    send_failed = "send_failed"

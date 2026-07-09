@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.schemas.draft import DraftResponse, DraftListResponse, DraftPatchRequest
-from app.services import draft_service
+from app.services import draft_service, mail_send_service
 from app.api.deps import require_user
 
 router = APIRouter()
@@ -36,3 +36,12 @@ def patch_draft(draft_id: int, body: DraftPatchRequest, db: Session = Depends(ge
     if not draft:
         raise HTTPException(status_code=404, detail="Draft not found")
     return draft
+
+
+@router.post("/drafts/{draft_id}/send", response_model=DraftResponse)
+def send_draft(draft_id: int, db: Session = Depends(get_db), user=Depends(require_user)):
+    try:
+        draft = mail_send_service.send_draft(db, draft_id, user.id)
+        return draft
+    except mail_send_service.SendError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
