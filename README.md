@@ -6,6 +6,7 @@ Project documents:
 
 - [Development Plan](docs/development-plan.md)
 - [Execution Plan](docs/execution-plan.md)
+- [Production Setup](docs/production.md)
 - [中文文档](README_CN.md) | [Chinese](README_CN.md)
 
 ## Quick Start
@@ -222,7 +223,7 @@ pytest tests/ -v
 
 ### Operations
 
-- [ ] Document production setup for stable `JWT_SECRET_KEY` and `ENCRYPTION_KEY`; rotating `ENCRYPTION_KEY` requires a re-encryption plan.
+- [x] Document production setup for stable `JWT_SECRET_KEY` and `ENCRYPTION_KEY`; rotating `ENCRYPTION_KEY` requires a re-encryption plan.
 - [ ] Add CI jobs for backend tests, frontend typecheck/build, and Alembic migration verification on a fresh PostgreSQL database.
 - [ ] Add seed/reset commands for local demo data.
 - [ ] Add logging/metrics for auth failures, AI provider failures, import counts, and reminder extraction counts.
