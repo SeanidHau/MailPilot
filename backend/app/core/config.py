@@ -30,6 +30,14 @@ class Settings(BaseSettings):
     gmail_oauth_success_url: str = "http://localhost:5173/settings?gmail=connected"
     gmail_oauth_failure_url: str = "http://localhost:5173/settings?gmail=error"
 
+    # Outlook / Microsoft Graph OAuth
+    outlook_client_id: str = ""
+    outlook_client_secret: str = ""
+    outlook_redirect_uri: str = "http://localhost:8000/api/outlook/oauth/callback"
+    outlook_scopes: str = "offline_access Mail.Read"
+    outlook_oauth_success_url: str = "http://localhost:5173/settings?outlook=connected"
+    outlook_oauth_failure_url: str = "http://localhost:5173/settings?outlook=error"
+
     # AI call reliability
     ai_request_timeout: float = 60.0
     ai_max_retries: int = 2

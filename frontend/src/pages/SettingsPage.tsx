@@ -4,10 +4,14 @@ import { Brain, Database, ExternalLink, FileJson, Mail, RefreshCw, Save, Unlink,
 import { importEmails, uploadEmails } from '../api/emails'
 import {
   disconnectGmail,
+  disconnectOutlook,
   fetchAISettings,
   fetchGmailAuthorizationUrl,
   fetchGmailStatus,
+  fetchOutlookAuthorizationUrl,
+  fetchOutlookStatus,
   refreshGmailToken,
+  refreshOutlookToken,
   updateAISettings,
 } from '../api/settings'
 import type { AIProvider, AIProviderConfig } from '../types/settings'
@@ -66,6 +70,7 @@ export function SettingsPage() {
   const [jsonText, setJsonText] = useState('')
   const [saveMsg, setSaveMsg] = useState('')
   const [gmailMsg, setGmailMsg] = useState('')
+  const [outlookMsg, setOutlookMsg] = useState('')
   const [config, setConfig] = useState<AIProviderConfig>(defaultConfig)
 
   const { data: savedConfig } = useQuery({
@@ -76,6 +81,11 @@ export function SettingsPage() {
   const { data: gmailStatus } = useQuery({
     queryKey: ['gmailStatus'],
     queryFn: fetchGmailStatus,
+  })
+
+  const { data: outlookStatus } = useQuery({
+    queryKey: ['outlookStatus'],
+    queryFn: fetchOutlookStatus,
   })
 
   useEffect(() => {
@@ -147,6 +157,32 @@ export function SettingsPage() {
       queryClient.invalidateQueries({ queryKey: ['gmailStatus'] })
     },
     onError: (err: Error) => setGmailMsg(`Disconnect failed: ${err.message}`),
+  })
+
+  const connectOutlookMut = useMutation({
+    mutationFn: fetchOutlookAuthorizationUrl,
+    onSuccess: ({ authorization_url }) => {
+      window.location.href = authorization_url
+    },
+    onError: (err: Error) => setOutlookMsg(`Outlook authorization failed: ${err.message}`),
+  })
+
+  const refreshOutlookMut = useMutation({
+    mutationFn: refreshOutlookToken,
+    onSuccess: () => {
+      setOutlookMsg('Outlook token refreshed.')
+      queryClient.invalidateQueries({ queryKey: ['outlookStatus'] })
+    },
+    onError: (err: Error) => setOutlookMsg(`Refresh failed: ${err.message}`),
+  })
+
+  const disconnectOutlookMut = useMutation({
+    mutationFn: disconnectOutlook,
+    onSuccess: () => {
+      setOutlookMsg('Outlook disconnected.')
+      queryClient.invalidateQueries({ queryKey: ['outlookStatus'] })
+    },
+    onError: (err: Error) => setOutlookMsg(`Disconnect failed: ${err.message}`),
   })
 
   const update = (patch: Partial<AIProviderConfig>) => setConfig((c) => ({ ...c, ...patch }))
@@ -237,6 +273,36 @@ export function SettingsPage() {
             </button>
           </div>
           {gmailMsg && <div style={noticeStyle(!gmailMsg.includes('failed'))}>{gmailMsg}</div>}
+        </div>
+
+        <div className="card">
+          <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Mail size={18} /> Outlook Integration
+          </h2>
+          <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)', marginBottom: '0.75rem' }}>
+            Connect Outlook / Microsoft 365 with OAuth. Access and refresh tokens are encrypted before being stored.
+          </p>
+          <div style={{ marginBottom: '0.75rem', fontSize: '0.875rem' }}>
+            Status: {outlookStatus?.connected ? `Connected${outlookStatus.email ? ` as ${outlookStatus.email}` : ''}` : 'Not connected'}
+            {outlookStatus?.expires_at && (
+              <span style={{ color: 'var(--color-text-muted)' }}> · expires {new Date(outlookStatus.expires_at).toLocaleString()}</span>
+            )}
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <button className="btn-primary" onClick={() => connectOutlookMut.mutate()} disabled={connectOutlookMut.isPending} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <ExternalLink size={14} />
+              {outlookStatus?.connected ? 'Reconnect Outlook' : 'Connect Outlook'}
+            </button>
+            <button className="btn-secondary" onClick={() => refreshOutlookMut.mutate()} disabled={!outlookStatus?.connected || refreshOutlookMut.isPending} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <RefreshCw size={14} />
+              Refresh Token
+            </button>
+            <button className="btn-secondary" onClick={() => disconnectOutlookMut.mutate()} disabled={!outlookStatus?.connected || disconnectOutlookMut.isPending} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Unlink size={14} />
+              Disconnect
+            </button>
+          </div>
+          {outlookMsg && <div style={noticeStyle(!outlookMsg.includes('failed'))}>{outlookMsg}</div>}
         </div>
 
         <div className="card">

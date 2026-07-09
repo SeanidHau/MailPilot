@@ -20,3 +20,14 @@ export interface GmailStatus {
 export interface GmailAuthorizeResponse {
   authorization_url: string;
 }
+
+export interface OutlookStatus {
+  connected: boolean;
+  email?: string | null;
+  scopes?: string | null;
+  expires_at?: string | null;
+}
+
+export interface OutlookAuthorizeResponse {
+  authorization_url: string;
+}
