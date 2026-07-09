@@ -1,7 +1,7 @@
 from __future__ import annotations
 import datetime
 from typing import Optional
-from sqlalchemy import String, Integer, Text, DateTime, ForeignKey, func
+from sqlalchemy import String, Integer, Text, DateTime, ForeignKey, Index, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -31,6 +31,15 @@ class Email(Base):
 
     drafts: Mapped[list["Draft"]] = relationship(back_populates="email", cascade="all, delete-orphan")
     reminders: Mapped[list["Reminder"]] = relationship(back_populates="email", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index(
+            'ix_emails_provider_dedup',
+            'user_id', 'provider', 'provider_message_id',
+            unique=True,
+            postgresql_where=text("provider IS NOT NULL AND provider_message_id IS NOT NULL"),
+        ),
+    )
 
 
 class Draft(Base):
