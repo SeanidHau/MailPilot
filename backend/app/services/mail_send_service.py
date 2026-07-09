@@ -4,6 +4,7 @@ from __future__ import annotations
 import base64
 import logging
 from email.mime.text import MIMEText
+from email.utils import parseaddr
 from typing import Optional
 
 import httpx
@@ -29,28 +30,37 @@ def send_draft(db: Session, draft_id: int, user_id: int) -> Draft:
     gmail = db.query(GmailAccount).filter(GmailAccount.user_id == user_id).first()
     outlook = db.query(OutlookAccount).filter(OutlookAccount.user_id == user_id).first()
 
+    def fail(msg: str):
+        draft.status = "send_failed"
+        draft.send_error = msg
+        db.commit()
+        raise SendError(msg)
+
     try:
         if gmail:
             _send_via_gmail(draft, gmail)
         elif outlook:
-            _send_via_outlook(draft, outlook, db)
+            _send_via_outlook(draft, outlook)
         else:
-            raise SendError("No connected mailbox. Connect Gmail or Outlook in Settings first.")
+            fail("No connected mailbox. Connect Gmail or Outlook in Settings first.")
         draft.status = "sent"
-        draft.updated_at = None  # trigger onupdate
+        draft.send_error = None
     except SendError:
-        draft.status = "send_failed"
-        db.commit()
         raise
     except Exception as exc:
         logger.error("Unexpected send error: %s", exc)
-        draft.status = "send_failed"
-        db.commit()
-        raise SendError(str(exc))
+        fail(str(exc))
 
     db.commit()
     db.refresh(draft)
     return draft
+
+
+def _get_recipient_address(draft: Draft) -> str:
+    if not draft.email:
+        return ""
+    _, addr = parseaddr(draft.email.sender)
+    return addr or draft.email.sender
 
 
 # -- Gmail send via Gmail API --
@@ -61,7 +71,7 @@ def _send_via_gmail(draft: Draft, account: GmailAccount):
         raise SendError("Gmail access token not available. Refresh token first.")
 
     msg = MIMEText(draft.content)
-    msg["To"] = draft.email.sender if draft.email else ""
+    msg["To"] = _get_recipient_address(draft)
     msg["Subject"] = f"Re: {draft.email.subject}" if draft.email else ""
     raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
 
@@ -77,7 +87,7 @@ def _send_via_gmail(draft: Draft, account: GmailAccount):
 
 # -- Outlook send via Microsoft Graph --
 
-def _send_via_outlook(draft: Draft, account: OutlookAccount, db: Session):
+def _send_via_outlook(draft: Draft, account: OutlookAccount):
     token = crypto.decrypt(account.access_token)
     if not token:
         raise SendError("Outlook access token not available. Refresh token first.")
@@ -87,7 +97,7 @@ def _send_via_outlook(draft: Draft, account: OutlookAccount, db: Session):
             "subject": f"Re: {draft.email.subject}" if draft.email else "",
             "body": {"contentType": "Text", "content": draft.content},
             "toRecipients": [
-                {"emailAddress": {"address": draft.email.sender or ""}}
+                {"emailAddress": {"address": _get_recipient_address(draft)}}
             ] if draft.email else [],
         },
         "saveToSentItems": True,

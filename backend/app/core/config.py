@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     gmail_client_id: str = ""
     gmail_client_secret: str = ""
     gmail_redirect_uri: str = "http://localhost:8000/api/gmail/oauth/callback"
-    gmail_scopes: str = "openid email https://www.googleapis.com/auth/gmail.readonly"
+    gmail_scopes: str = "openid email https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send"
     gmail_oauth_success_url: str = "http://localhost:5173/settings?gmail=connected"
     gmail_oauth_failure_url: str = "http://localhost:5173/settings?gmail=error"
 
@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     outlook_client_id: str = ""
     outlook_client_secret: str = ""
     outlook_redirect_uri: str = "http://localhost:8000/api/outlook/oauth/callback"
-    outlook_scopes: str = "offline_access User.Read Mail.Read"
+    outlook_scopes: str = "offline_access User.Read Mail.Read Mail.Send"
     outlook_oauth_success_url: str = "http://localhost:5173/settings?outlook=connected"
     outlook_oauth_failure_url: str = "http://localhost:5173/settings?outlook=error"
 

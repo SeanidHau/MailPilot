@@ -62,9 +62,9 @@ export function DraftsPage() {
                   <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
                     {STATUS_LABELS[draft.status] || draft.status}
                   </span>
-                  {sendMut.isError && sendMut.variables === draft.id && (
+                  {(draft.send_error || (sendMut.isError && sendMut.variables === draft.id)) && (
                     <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem', color: 'var(--color-danger)' }}>
-                      {(sendMut.error as Error)?.message || '发送失败'}
+                      {draft.send_error || (sendMut.error as Error)?.message || '发送失败'}
                     </span>
                   )}
                 </div>

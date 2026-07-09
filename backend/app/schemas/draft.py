@@ -12,6 +12,7 @@ class DraftResponse(BaseModel):
     tone: str
     content: str
     status: str
+    send_error: Optional[str] = None
     created_at: datetime.datetime
     updated_at: datetime.datetime
 

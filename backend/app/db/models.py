@@ -42,6 +42,7 @@ class Draft(Base):
     tone: Mapped[str] = mapped_column(String(32))
     content: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(16), default="draft")
+    send_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
