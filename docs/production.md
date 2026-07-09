@@ -55,82 +55,125 @@ ENCRYPTION_KEY=<生成的值>
 
 轮换加密密钥需要重新加密所有已存储的敏感数据，因为旧密文无法用新密钥解密。
 
-### 轮换步骤
+### 轮换流程
 
-1. **部署前备份数据库**
+1. **进入维护窗口，停止服务**（避免并发写）。
 
-2. **编写迁移脚本** `backend/scripts/rotate_encryption_key.py`：
+2. **备份数据库**。
+
+3. **运行轮换脚本**（服务停止状态），同时传入旧密钥和新密钥：
+   ```bash
+   OLD_ENCRYPTION_KEY=<旧密钥> NEW_ENCRYPTION_KEY=<新密钥> \
+     python3 backend/scripts/rotate_encryption_key.py
+   ```
+
+4. **验证**：启动服务并确认敏感数据可正常解密。
+
+5. **更新环境变量**：将 `ENCRYPTION_KEY` 替换为新密钥，启动服务，删除旧密钥。
+
+### 轮换脚本
+
+`backend/scripts/rotate_encryption_key.py`：
+
 ```python
-"""重新加密所有已存储的敏感数据。"""
+"""用旧密钥解密、新密钥重新加密所有已存储的敏感数据。
+
+用法：
+  OLD_ENCRYPTION_KEY=<旧密钥> NEW_ENCRYPTION_KEY=<新密钥> python3 rotate_encryption_key.py
+"""
+import json
+import os
+import sys
+
+from cryptography.fernet import Fernet
+
+# 显式读取旧/新密钥，不依赖 app.core.crypto 的单密钥模型
+old_key = os.environ.get("OLD_ENCRYPTION_KEY")
+new_key = os.environ.get("NEW_ENCRYPTION_KEY")
+if not old_key or not new_key:
+    print("Must set both OLD_ENCRYPTION_KEY and NEW_ENCRYPTION_KEY")
+    sys.exit(1)
+
+old_fernet = Fernet(old_key.encode())
+new_fernet = Fernet(new_key.encode())
+
 from app.db.session import SessionLocal
 from app.db.models import Setting, GmailAccount, OutlookAccount
-from app.core import crypto
+
 
 def rotate():
     db = SessionLocal()
     try:
         # 1. 重新加密 AI 设置中的 API Key
         for row in db.query(Setting).all():
-            if row.value and "openai_api_key" in row.value:
-                import json
+            if not row.value:
+                continue
+            try:
                 data = json.loads(row.value)
-                changed = False
-                for key in ("openai_api_key", "anthropic_api_key"):
-                    val = data.get(key, "")
-                    if val and not val.startswith("gAAAAAB"):  # 未加密的明文
-                        pass  # 已经是明文则跳过
-                    elif val:
-                        # 解密旧值，用新密钥重新加密
-                        decrypted = crypto.decrypt(val)
-                        if decrypted:  # 说明旧密钥还能用
-                            data[key] = crypto.encrypt(decrypted)
-                            changed = True
-                if changed:
-                    row.value = json.dumps(data)
+            except json.JSONDecodeError:
+                continue
+            changed = False
+            for key in ("openai_api_key", "anthropic_api_key"):
+                val = data.get(key, "")
+                if not val:
+                    continue
+                if not val.startswith("gAAAAAB"):
+                    # 明文值 → 直接用新密钥加密
+                    data[key] = new_fernet.encrypt(val.encode()).decode()
+                    changed = True
+                else:
+                    # Fernet 密文 → 旧密钥解密，新密钥重新加密
+                    try:
+                        plain = old_fernet.decrypt(val.encode()).decode()
+                        data[key] = new_fernet.encrypt(plain.encode()).decode()
+                        changed = True
+                    except Exception:
+                        print(f"  WARNING: cannot decrypt key '{key}' for setting id={row.id}, skipping")
+            if changed:
+                row.value = json.dumps(data)
 
-        # 2. 重新加密 Gmail Token（同理）
+        # 2. 重新加密 Gmail Token
         for row in db.query(GmailAccount).all():
-            if row.access_token:
-                decrypted = crypto.decrypt(row.access_token)
-                if decrypted:
-                    row.access_token = crypto.encrypt(decrypted)
-            if row.refresh_token:
-                decrypted = crypto.decrypt(row.refresh_token)
-                if decrypted:
-                    row.refresh_token = crypto.encrypt(decrypted)
+            _re_encrypt_token(row, "access_token")
+            _re_encrypt_token(row, "refresh_token")
 
         # 3. 重新加密 Outlook Token
         for row in db.query(OutlookAccount).all():
-            if row.access_token:
-                decrypted = crypto.decrypt(row.access_token)
-                if decrypted:
-                    row.access_token = crypto.encrypt(decrypted)
-            if row.refresh_token:
-                decrypted = crypto.decrypt(row.refresh_token)
-                if decrypted:
-                    row.refresh_token = crypto.encrypt(decrypted)
+            _re_encrypt_token(row, "access_token")
+            _re_encrypt_token(row, "refresh_token")
 
         db.commit()
         print("Encryption key rotation complete.")
     finally:
         db.close()
 
+
+def _re_encrypt_token(row, field: str):
+    val = getattr(row, field, None)
+    if not val:
+        return
+    if not val.startswith("gAAAAAB"):
+        # 明文 → 新密钥加密
+        setattr(row, field, new_fernet.encrypt(val.encode()).decode())
+        return
+    try:
+        plain = old_fernet.decrypt(val.encode()).decode()
+        setattr(row, field, new_fernet.encrypt(plain.encode()).decode())
+    except Exception:
+        print(f"  WARNING: cannot decrypt {field} for {type(row).__name__} id={row.id}, skipping")
+
+
 if __name__ == "__main__":
     rotate()
 ```
 
-3. **轮换流程：**
-   - （A）保持旧 `ENCRYPTION_KEY` 运行
-   - （B）部署新密钥到服务器
-   - （C）运行 `rotate_encryption_key.py` 脚本，用旧密钥解密、新密钥重新加密
-   - （D）验证解密正常：登录后查看 Settings 页面 AI Key 是否正常显示
-   - （E）删除旧密钥
-
 ### 轮换注意事项
 
-- 必须在服务运行但无并发写操作时执行（建议维护窗口）
-- 轮换完成后立即重启服务
-- 如果轮换过程中出错，立即回滚到旧密钥
+- 必须在**服务停止状态**下运行脚本（或维护窗口内禁止写入）
+- 脚本同时持有旧密钥和新密钥，用旧密钥解密、新密钥加密
+- 明文值（如历史遗留的未加密数据）在轮换中**会被加密**
+- 轮换完成后验证解密正常，再更新环境变量并重启服务
+- 如果轮换过程中出错，立即回滚到旧密钥，从备份恢复
 - 密钥永久丢失 = 数据不可恢复 = 用户需要重新输入 API Key 和重新 OAuth 授权
 
 ## 数据库迁移
