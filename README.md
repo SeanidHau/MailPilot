@@ -67,6 +67,9 @@ pytest tests/ -v
 | `ANTHROPIC_API_KEY` | empty | Default Anthropic API key |
 | `ANTHROPIC_BASE_URL` | `https://api.anthropic.com` | Default Anthropic base URL |
 | `ANTHROPIC_MODEL` | `claude-sonnet-4-5-20250929` | Default Anthropic model |
+| `AI_REQUEST_TIMEOUT` | `60.0` | Per-request timeout for OpenAI-compatible and Anthropic calls, in seconds |
+| `AI_MAX_RETRIES` | `2` | Maximum retry count for retryable AI provider failures |
+| `AI_RATE_LIMIT_PER_MINUTE` | `30` | Global AI provider request rate limit |
 | `JWT_SECRET_KEY` | generated if unset | JWT signing key. Set a stable secret outside local development |
 | `ENCRYPTION_KEY` | generated if unset | Fernet key for encrypted stored AI API keys. Must be stable to decrypt saved values after restart |
 | `GMAIL_CLIENT_ID` | empty | Google OAuth client ID for Gmail integration |
@@ -151,7 +154,7 @@ pytest tests/ -v
 - Gmail OAuth authorization is available, but mailbox sync is not implemented yet; email data still comes from mock JSON import
 - No automatic email sending
 - User authentication exists with per-user data isolation; unauthenticated access to data APIs returns 401
-- AI providers are configurable, but production-grade provider observability, retry policy, and cost controls are not complete
+- AI providers are configurable with timeout, retry, and rate-limit handling, but production-grade observability and cost controls are not complete
 
 ## Technology Stack
 
@@ -187,7 +190,7 @@ pytest tests/ -v
 
 ### AI Reliability
 
-- [ ] Add provider-level timeout, retry, and rate-limit handling for OpenAI-compatible and Anthropic calls.
+- [x] Add provider-level timeout, retry, and rate-limit handling for OpenAI-compatible and Anthropic calls.
 - [ ] Add structured error responses when real AI providers fail, instead of returning only generic fallback text.
 - [x] Add per-user AI provider selection to background/service calls consistently once all data is user-scoped.
 - [ ] Add prompt/version metadata to generated summaries, drafts, classifications, and extracted reminders.

@@ -67,6 +67,9 @@ pytest tests/ -v
 | `ANTHROPIC_API_KEY` | 空 | 默认 Anthropic API Key |
 | `ANTHROPIC_BASE_URL` | `https://api.anthropic.com` | 默认 Anthropic Base URL |
 | `ANTHROPIC_MODEL` | `claude-sonnet-4-5-20250929` | 默认 Anthropic 模型 |
+| `AI_REQUEST_TIMEOUT` | `60.0` | OpenAI 兼容和 Anthropic 调用的单次请求超时，单位秒 |
+| `AI_MAX_RETRIES` | `2` | AI 提供商可重试失败的最大重试次数 |
+| `AI_RATE_LIMIT_PER_MINUTE` | `30` | 全局 AI 提供商请求限流 |
 | `JWT_SECRET_KEY` | 未配置时自动生成 | JWT 签名密钥。非本地开发环境应配置稳定密钥 |
 | `ENCRYPTION_KEY` | 未配置时自动生成 | 用于加密存储 AI API Key 的 Fernet 密钥。必须保持稳定，否则重启后无法解密旧值 |
 | `GMAIL_CLIENT_ID` | 空 | Gmail 集成使用的 Google OAuth client ID |
@@ -151,7 +154,7 @@ pytest tests/ -v
 - 已支持 Gmail OAuth 授权，但尚未实现邮箱同步；邮件数据仍来自 mock JSON 导入
 - 不支持自动发送邮件
 - 已有用户认证及按用户隔离的数据管理；未登录访问数据 API 返回 401
-- AI 提供商已可配置，但生产级观测、重试策略和成本控制尚未完善
+- AI 提供商已可配置，并支持超时、重试和限流处理，但生产级观测和成本控制尚未完善
 
 ## 技术栈
 
@@ -187,7 +190,7 @@ pytest tests/ -v
 
 ### AI 可靠性
 
-- [ ] 为 OpenAI 兼容和 Anthropic 调用增加超时、重试、限流处理。
+- [x] 为 OpenAI 兼容和 Anthropic 调用增加超时、重试、限流处理。
 - [ ] 当真实 AI 提供商失败时返回结构化错误，而不是只返回通用 fallback 文本。
 - [x] 在核心数据完成用户隔离后，确保后台任务和服务调用也一致使用当前用户的 AI 提供商配置。
 - [ ] 为生成的摘要、草稿、分类和提醒提取结果记录 prompt/version 元数据。
