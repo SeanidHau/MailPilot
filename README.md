@@ -217,7 +217,7 @@ pytest tests/ -v
 
 - [ ] Add onboarding that guides first-time users through registration, mock import, and AI provider configuration.
 - [ ] Add clearer settings-state messaging when the user is not logged in and attempts to save authenticated settings.
-- [ ] Add better empty states for dashboards before any email import.
+- [x] Add better empty states for dashboards before any email import.
 - [ ] Add responsive/mobile QA for the full authenticated flow.
 
 ### Operations
