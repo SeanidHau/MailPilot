@@ -151,7 +151,7 @@ def classify_email(db: Session, email_id: int, user_id: int):
         return None
 
     provider = get_ai_provider(db, user_id)
-    category, score = provider.classify_email({
+    category, score, error = provider.classify_email({
         "subject": email.subject,
         "body": email.body,
         "sender": email.sender,
@@ -161,7 +161,7 @@ def classify_email(db: Session, email_id: int, user_id: int):
     email.importance_score = score
     db.commit()
     db.refresh(email)
-    return email
+    return email, error
 
 
 def summarize_email(db: Session, email_id: int, user_id: int):
@@ -170,7 +170,7 @@ def summarize_email(db: Session, email_id: int, user_id: int):
         return None
 
     provider = get_ai_provider(db, user_id)
-    summary = provider.summarize_email({
+    summary, error = provider.summarize_email({
         "subject": email.subject,
         "body": email.body,
     })
@@ -178,4 +178,4 @@ def summarize_email(db: Session, email_id: int, user_id: int):
     email.summary = summary
     db.commit()
     db.refresh(email)
-    return email
+    return email, error

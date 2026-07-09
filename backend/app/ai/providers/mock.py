@@ -1,34 +1,36 @@
 import re
 from datetime import datetime, timedelta
+from typing import Optional
 
 from app.ai.providers.base import AIProvider
+from app.schemas.ai import AIError
 
 
 class MockAIProvider(AIProvider):
-    def classify_email(self, email: dict) -> tuple[str, int]:
+    def classify_email(self, email: dict) -> tuple[str, int, Optional[AIError]]:
         subject = email.get("subject", "").lower()
         body = email.get("body", "").lower()
         text = f"{subject} {body}"
 
         if any(w in text for w in ["urgent", "deadline", "final notice", "action required", "critical"]):
-            return ("important", min(5, self._score_importance(text) + 2))
+            return ("important", min(5, self._score_importance(text) + 2), None)
 
         if any(w in text for w in ["lottery", "winner", "prize", "click here", "free money", "congratulations"]):
-            return ("spam", 1)
+            return ("spam", 1, None)
 
         if any(w in text for w in ["invoice", "receipt", "payment", "due amount", "subscription", "billing"]):
-            return ("bill", 3)
+            return ("bill", 3, None)
 
         if any(w in text for w in ["assignment", "class", "project", "report", "professor", "manager"]):
-            return ("school_work", 3)
+            return ("school_work", 3, None)
 
         if any(w in text for w in ["reply", "respond", "confirm", "approve", "feedback", "question"]):
-            return ("needs_reply", 3)
+            return ("needs_reply", 3, None)
 
         if any(w in text for w in ["discount", "sale", "offer", "unsubscribe", "campaign", "promo"]):
-            return ("promotion", 2)
+            return ("promotion", 2, None)
 
-        return ("normal", self._score_importance(text))
+        return ("normal", self._score_importance(text), None)
 
     def _score_importance(self, text: str) -> int:
         score = 1
@@ -40,23 +42,23 @@ class MockAIProvider(AIProvider):
             score += 1
         return min(5, max(1, score))
 
-    def summarize_email(self, email: dict) -> str:
+    def summarize_email(self, email: dict) -> tuple[str, Optional[AIError]]:
         body = email.get("body", "")
         sentences = re.split(r"(?<=[.!?])\s+", body.strip())
         if len(sentences) <= 2:
-            return body[:500] if body else "No content to summarize."
+            return body[:500] if body else "No content to summarize.", None
 
         first = sentences[0] if sentences else ""
         key_points = [s for s in sentences[1:4] if len(s) > 20]
         if not key_points:
-            return first[:500]
+            return first[:500], None
 
         summary = f"{first}\n\nKey points:\n"
         for i, pt in enumerate(key_points, 1):
             summary += f"- {pt.strip()[:200]}\n"
-        return summary[:500]
+        return summary[:500], None
 
-    def generate_reply(self, email: dict, tone: str) -> str:
+    def generate_reply(self, email: dict, tone: str) -> tuple[str, Optional[AIError]]:
         sender = email.get("sender", "there")
         subject = email.get("subject", "your email")
 
@@ -66,9 +68,9 @@ class MockAIProvider(AIProvider):
             "polite_decline": f"Dear {sender},\n\nThank you for your message about \"{subject}\". After careful review, I regret to inform you that I am unable to proceed at this time. I appreciate your understanding.\n\nBest regards,\n[MailPilot User]",
             "ask_info": f"Hi {sender},\n\nThanks for your email regarding \"{subject}\". To help me move forward, could you please provide the following:\n\n- Additional details about the matter\n- Any relevant timelines or deadlines\n- Supporting documents if available\n\nLooking forward to your response.\n\nBest,\n[MailPilot User]",
         }
-        return templates.get(tone, templates["formal"])
+        return templates.get(tone, templates["formal"]), None
 
-    def extract_reminders(self, email: dict) -> list[dict]:
+    def extract_reminders(self, email: dict) -> tuple[list[dict], Optional[AIError]]:
         subject = email.get("subject", "")
         body = email.get("body", "")
         text = f"{subject}\n{body}"
@@ -131,4 +133,4 @@ class MockAIProvider(AIProvider):
                 "due_at": (datetime.now() + timedelta(days=2)).isoformat(),
             })
 
-        return reminders
+        return reminders, None

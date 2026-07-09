@@ -35,7 +35,7 @@ def generate_draft(db: Session, email_id: int, tone: str, user_id: int):
         return None
 
     provider = get_ai_provider(db, user_id)
-    content = provider.generate_reply({
+    content, error = provider.generate_reply({
         "subject": email.subject,
         "body": email.body,
         "sender": email.sender,
@@ -45,4 +45,4 @@ def generate_draft(db: Session, email_id: int, tone: str, user_id: int):
     db.add(draft)
     db.commit()
     db.refresh(draft)
-    return draft
+    return draft, error

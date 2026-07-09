@@ -67,33 +67,37 @@ def patch_email(email_id: int, body: EmailPatchRequest, db: Session = Depends(ge
 
 @router.post("/emails/{email_id}/classify", response_model=ClassifyResponse)
 def classify_email(email_id: int, db: Session = Depends(get_db), user=Depends(require_user)):
-    email = email_service.classify_email(db, email_id, user.id)
-    if not email:
+    result = email_service.classify_email(db, email_id, user.id)
+    if not result:
         raise HTTPException(status_code=404, detail="Email not found")
-    return {"category": email.category, "importance_score": email.importance_score}
+    email, error = result
+    return {"category": email.category, "importance_score": email.importance_score, "error": error}
 
 
 @router.post("/emails/{email_id}/summarize", response_model=SummarizeResponse)
 def summarize_email(email_id: int, db: Session = Depends(get_db), user=Depends(require_user)):
-    email = email_service.summarize_email(db, email_id, user.id)
-    if not email:
+    result = email_service.summarize_email(db, email_id, user.id)
+    if not result:
         raise HTTPException(status_code=404, detail="Email not found")
-    return {"summary": email.summary}
+    email, error = result
+    return {"summary": email.summary, "error": error}
 
 
 @router.post("/emails/{email_id}/drafts", response_model=GenerateDraftResponse)
 def create_draft(email_id: int, body: GenerateDraftRequest, db: Session = Depends(get_db), user=Depends(require_user)):
-    draft = draft_service.generate_draft(db, email_id, body.tone.value, user.id)
-    if not draft:
+    result = draft_service.generate_draft(db, email_id, body.tone.value, user.id)
+    if not result:
         raise HTTPException(status_code=404, detail="Email not found")
-    return {"id": draft.id, "tone": draft.tone, "content": draft.content}
+    draft, error = result
+    return {"id": draft.id, "tone": draft.tone, "content": draft.content, "error": error}
 
 
 @router.post("/emails/{email_id}/reminders/extract", response_model=ExtractRemindersResponse)
 def extract_reminders(email_id: int, db: Session = Depends(get_db), user=Depends(require_user)):
-    items = reminder_service.extract_reminders(db, email_id, user.id)
-    if items is None:
+    result = reminder_service.extract_reminders(db, email_id, user.id)
+    if result is None:
         raise HTTPException(status_code=404, detail="Email not found")
+    items, error = result
     return {
         "reminders": [
             {
@@ -103,5 +107,6 @@ def extract_reminders(email_id: int, db: Session = Depends(get_db), user=Depends
                 "due_at": r.due_at.isoformat() if r.due_at else None,
             }
             for r in items
-        ]
+        ],
+        "error": error,
     }

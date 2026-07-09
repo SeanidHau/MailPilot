@@ -49,7 +49,7 @@ def extract_reminders(db: Session, email_id: int, user_id: int):
         return None
 
     provider = get_ai_provider(db, user_id)
-    items = provider.extract_reminders({
+    items, error = provider.extract_reminders({
         "subject": email.subject,
         "body": email.body,
     })
@@ -79,4 +79,4 @@ def extract_reminders(db: Session, email_id: int, user_id: int):
     db.commit()
     for r in created:
         db.refresh(r)
-    return created
+    return created, error
