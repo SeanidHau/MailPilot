@@ -26,6 +26,8 @@ class Email(Base):
     updated_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True, default=None, index=True)
+    provider: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, default=None)  # gmail, outlook, mock
+    provider_message_id: Mapped[Optional[str]] = mapped_column(String(512), nullable=True, default=None)  # provider-specific ID for dedup
 
     drafts: Mapped[list["Draft"]] = relationship(back_populates="email", cascade="all, delete-orphan")
     reminders: Mapped[list["Reminder"]] = relationship(back_populates="email", cascade="all, delete-orphan")

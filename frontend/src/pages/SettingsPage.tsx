@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Brain, Database, ExternalLink, FileJson, Mail, RefreshCw, Save, Unlink, Upload } from 'lucide-react'
 import { importEmails, uploadEmails } from '../api/emails'
+import { syncGmailInbox, syncOutlookInbox } from '../api/sync'
 import {
   disconnectGmail,
   disconnectOutlook,
@@ -159,6 +160,15 @@ export function SettingsPage() {
     onError: (err: Error) => setGmailMsg(`Disconnect failed: ${err.message}`),
   })
 
+  const syncGmailMut = useMutation({
+    mutationFn: syncGmailInbox,
+    onSuccess: (data) => {
+      setGmailMsg(`Sync done: ${data.new} new, ${data.skipped} skipped${data.errors.length ? `, ${data.errors.length} errors` : ''}.`)
+      queryClient.invalidateQueries()
+    },
+    onError: (err: Error) => setGmailMsg(`Sync failed: ${err.message}`),
+  })
+
   const connectOutlookMut = useMutation({
     mutationFn: fetchOutlookAuthorizationUrl,
     onSuccess: ({ authorization_url }) => {
@@ -183,6 +193,15 @@ export function SettingsPage() {
       queryClient.invalidateQueries({ queryKey: ['outlookStatus'] })
     },
     onError: (err: Error) => setOutlookMsg(`Disconnect failed: ${err.message}`),
+  })
+
+  const syncOutlookMut = useMutation({
+    mutationFn: syncOutlookInbox,
+    onSuccess: (data) => {
+      setOutlookMsg(`Sync done: ${data.new} new, ${data.skipped} skipped${data.errors.length ? `, ${data.errors.length} errors` : ''}.`)
+      queryClient.invalidateQueries()
+    },
+    onError: (err: Error) => setOutlookMsg(`Sync failed: ${err.message}`),
   })
 
   const update = (patch: Partial<AIProviderConfig>) => setConfig((c) => ({ ...c, ...patch }))
@@ -267,6 +286,10 @@ export function SettingsPage() {
               <RefreshCw size={14} />
               Refresh Token
             </button>
+            <button className="btn-secondary" onClick={() => syncGmailMut.mutate()} disabled={!gmailStatus?.connected || syncGmailMut.isPending} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Upload size={14} />
+              Sync Inbox
+            </button>
             <button className="btn-secondary" onClick={() => disconnectGmailMut.mutate()} disabled={!gmailStatus?.connected || disconnectGmailMut.isPending} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <Unlink size={14} />
               Disconnect
@@ -296,6 +319,10 @@ export function SettingsPage() {
             <button className="btn-secondary" onClick={() => refreshOutlookMut.mutate()} disabled={!outlookStatus?.connected || refreshOutlookMut.isPending} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <RefreshCw size={14} />
               Refresh Token
+            </button>
+            <button className="btn-secondary" onClick={() => syncOutlookMut.mutate()} disabled={!outlookStatus?.connected || syncOutlookMut.isPending} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Upload size={14} />
+              Sync Inbox
             </button>
             <button className="btn-secondary" onClick={() => disconnectOutlookMut.mutate()} disabled={!outlookStatus?.connected || disconnectOutlookMut.isPending} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <Unlink size={14} />
