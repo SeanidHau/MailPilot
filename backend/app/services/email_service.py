@@ -33,6 +33,47 @@ def import_mock_emails(db: Session, user_id: int) -> int:
     return imported
 
 
+def import_emails_from_list(db: Session, emails_data: list[dict], user_id: int) -> dict:
+    """Import emails from a list of dicts. Returns {imported, skipped, errors}."""
+    from datetime import datetime as dt
+
+    imported = 0
+    skipped = 0
+    errors: list[str] = []
+
+    for i, data in enumerate(emails_data):
+        if not isinstance(data, dict):
+            errors.append(f"Item {i}: not a JSON object")
+            continue
+        msg_id = data.get("message_id", "")
+        if not msg_id:
+            errors.append(f"Item {i}: missing message_id")
+            continue
+        q = db.query(Email).filter(Email.message_id == msg_id, Email.user_id == user_id)
+        if q.first():
+            skipped += 1
+            continue
+        try:
+            if isinstance(data.get("received_at"), str):
+                data["received_at"] = dt.fromisoformat(data["received_at"])
+            email = Email(
+                message_id=msg_id,
+                sender=data.get("sender", ""),
+                recipients=data.get("recipients", ""),
+                subject=data.get("subject", ""),
+                body=data.get("body", ""),
+                received_at=data["received_at"],
+                user_id=user_id,
+            )
+            db.add(email)
+            imported += 1
+        except Exception as exc:
+            errors.append(f"Item {i} ({msg_id}): {exc}")
+
+    db.commit()
+    return {"imported": imported, "skipped": skipped, "errors": errors}
+
+
 def get_emails(
     db: Session,
     user_id: int,

@@ -25,8 +25,13 @@ export interface EmailPatchBody {
   importance_score?: number;
 }
 
-export async function importEmails(): Promise<{ imported: number }> {
+export async function importEmails(): Promise<{ imported: number; skipped: number; errors: string[] }> {
   const { data } = await api.post('/emails/import');
+  return data;
+}
+
+export async function uploadEmails(emails: Record<string, any>[]): Promise<{ imported: number; skipped: number; errors: string[] }> {
+  const { data } = await api.post('/emails/import/upload', { emails });
   return data;
 }
 

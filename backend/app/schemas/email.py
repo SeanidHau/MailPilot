@@ -8,6 +8,21 @@ from app.schemas import EmailCategory
 
 class ImportResponse(BaseModel):
     imported: int
+    skipped: int = 0
+    errors: list[str] = []
+
+
+class EmailImportItem(BaseModel):
+    message_id: str
+    sender: str
+    recipients: str
+    subject: str
+    body: str
+    received_at: datetime.datetime
+
+
+class EmailImportRequest(BaseModel):
+    emails: list[EmailImportItem]
 
 
 class EmailBase(BaseModel):

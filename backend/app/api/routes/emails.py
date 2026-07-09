@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.schemas.email import ImportResponse, EmailResponse, EmailListResponse, EmailPatchRequest, EmailDetailResponse
+from app.schemas.email import ImportResponse, EmailImportRequest, EmailResponse, EmailListResponse, EmailPatchRequest, EmailDetailResponse
 from app.schemas.ai import ClassifyResponse, SummarizeResponse, GenerateDraftRequest, GenerateDraftResponse, ExtractRemindersResponse
 from app.services import email_service, draft_service, reminder_service
 from app.api.deps import require_user
@@ -17,6 +17,13 @@ router = APIRouter()
 def import_emails(db: Session = Depends(get_db), user=Depends(require_user)):
     count = email_service.import_mock_emails(db, user.id)
     return {"imported": count}
+
+
+@router.post("/emails/import/upload", response_model=ImportResponse)
+def import_emails_upload(body: EmailImportRequest, db: Session = Depends(get_db), user=Depends(require_user)):
+    items = [item.model_dump() for item in body.emails]
+    result = email_service.import_emails_from_list(db, items, user.id)
+    return result
 
 
 @router.get("/emails", response_model=EmailListResponse)

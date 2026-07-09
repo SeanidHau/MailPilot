@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Brain, Database, ExternalLink, Mail, RefreshCw, Save, Unlink, Upload } from 'lucide-react'
-import { importEmails } from '../api/emails'
+import { Brain, Database, ExternalLink, FileJson, Mail, RefreshCw, Save, Unlink, Upload } from 'lucide-react'
+import { importEmails, uploadEmails } from '../api/emails'
 import {
   disconnectGmail,
   fetchAISettings,
@@ -62,6 +62,9 @@ function noticeStyle(ok: boolean): React.CSSProperties {
 export function SettingsPage() {
   const queryClient = useQueryClient()
   const [importMsg, setImportMsg] = useState('')
+  const [uploadMsg, setUploadMsg] = useState('')
+  const [jsonText, setJsonText] = useState('')
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [saveMsg, setSaveMsg] = useState('')
   const [gmailMsg, setGmailMsg] = useState('')
   const [config, setConfig] = useState<AIProviderConfig>(defaultConfig)
@@ -88,6 +91,44 @@ export function SettingsPage() {
     },
     onError: (err: Error) => setImportMsg(`Import failed: ${err.message}`),
   })
+
+  const uploadMut = useMutation({
+    mutationFn: (emails: Record<string, any>[]) => uploadEmails(emails),
+    onSuccess: (data) => {
+      setUploadMsg(`Imported ${data.imported}, skipped ${data.skipped}${data.errors.length ? `, ${data.errors.length} errors` : ''}.`)
+      if (data.errors.length > 0) {
+        setUploadMsg((m) => m + ` First error: ${data.errors[0]}`)
+      }
+      queryClient.invalidateQueries()
+    },
+    onError: (err: Error) => setUploadMsg(`Upload failed: ${err.message}`),
+  })
+
+  const handleJsonUpload = () => {
+    setUploadMsg('')
+    let emails: Record<string, any>[]
+    if (uploadFile) {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        try {
+          emails = JSON.parse(e.target?.result as string)
+          if (!Array.isArray(emails)) throw new Error('JSON must be an array')
+          uploadMut.mutate(emails)
+        } catch (err: any) {
+          setUploadMsg(`Invalid JSON: ${err.message}`)
+        }
+      }
+      reader.readAsText(uploadFile)
+    } else if (jsonText.trim()) {
+      try {
+        emails = JSON.parse(jsonText)
+        if (!Array.isArray(emails)) throw new Error('JSON must be an array')
+        uploadMut.mutate(emails)
+      } catch (err: any) {
+        setUploadMsg(`Invalid JSON: ${err.message}`)
+      }
+    }
+  }
 
   const saveMut = useMutation({
     mutationFn: updateAISettings,
@@ -212,6 +253,31 @@ export function SettingsPage() {
             </button>
           </div>
           {gmailMsg && <div style={noticeStyle(!gmailMsg.includes('failed'))}>{gmailMsg}</div>}
+        </div>
+
+        <div className="card">
+          <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <FileJson size={18} /> JSON Upload Import
+          </h2>
+          <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)', marginBottom: '0.75rem' }}>
+            Upload a JSON file or paste JSON array of email objects. Each object needs: message_id, sender, recipients, subject, body, received_at.
+          </p>
+          <label style={labelStyle}>JSON File</label>
+          <input type="file" accept=".json" onChange={(e) => { setUploadFile(e.target.files?.[0] || null); setJsonText('') }}
+            style={{ ...inputStyle, border: 'none', padding: '0.375rem 0' }} />
+          <label style={labelStyle}>Or paste JSON</label>
+          <textarea
+            rows={5}
+            placeholder='[{"message_id":"msg-001","sender":"a@b.com","recipients":"me@b.com","subject":"Hello","body":"...","received_at":"2026-01-01T00:00:00"}]'
+            value={jsonText}
+            onChange={(e) => { setJsonText(e.target.value); setUploadFile(null) }}
+            style={{ ...inputStyle, fontFamily: 'monospace', fontSize: '0.75rem' }}
+          />
+          <button className="btn-primary" onClick={handleJsonUpload} disabled={uploadMut.isPending} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Upload size={14} />
+            {uploadMut.isPending ? 'Uploading...' : 'Upload JSON'}
+          </button>
+          {uploadMsg && <div style={noticeStyle(uploadMsg.startsWith('Imported'))}>{uploadMsg}</div>}
         </div>
 
         <div className="card">
