@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     gmail_oauth_success_url: str = "http://localhost:5173/settings?gmail=connected"
     gmail_oauth_failure_url: str = "http://localhost:5173/settings?gmail=error"
 
+    # AI call reliability
+    ai_request_timeout: float = 60.0
+    ai_max_retries: int = 2
+    ai_rate_limit_per_minute: int = 30
+
     model_config = {"env_file": ".env"}
 
 
