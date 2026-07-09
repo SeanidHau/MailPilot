@@ -191,7 +191,7 @@ pytest tests/ -v
 ### AI Reliability
 
 - [x] Add provider-level timeout, retry, and rate-limit handling for OpenAI-compatible and Anthropic calls.
-- [ ] Add structured error responses when real AI providers fail, instead of returning only generic fallback text.
+- [x] Add structured error responses when real AI providers fail, instead of returning only generic fallback text.
 - [x] Add per-user AI provider selection to background/service calls consistently once all data is user-scoped.
 - [ ] Add prompt/version metadata to generated summaries, drafts, classifications, and extracted reminders.
 - [ ] Add evaluation tests for classification accuracy, reminder extraction, and reply draft quality beyond the current mock-provider unit tests.

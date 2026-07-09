@@ -25,6 +25,12 @@ export interface EmailListResponse {
   page_size: number;
 }
 
+export interface AIError {
+  message: string;
+  type: 'auth_error' | 'rate_limit' | 'server_error' | 'timeout' | 'provider_error' | string;
+  retryable: boolean;
+}
+
 export interface EmailDetailResponse extends EmailResponse {
   drafts: DraftResponse[];
   reminders: ReminderResponse[];
@@ -33,20 +39,24 @@ export interface EmailDetailResponse extends EmailResponse {
 export interface ClassifyResponse {
   category: string;
   importance_score: number;
+  error: AIError | null;
 }
 
 export interface SummarizeResponse {
   summary: string;
+  error: AIError | null;
 }
 
 export interface GenerateDraftResponse {
   id: number;
   tone: string;
   content: string;
+  error: AIError | null;
 }
 
 export interface ExtractRemindersResponse {
   reminders: ReminderItem[];
+  error: AIError | null;
 }
 
 export interface ReminderItem {
