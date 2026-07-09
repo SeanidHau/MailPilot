@@ -78,6 +78,12 @@ pytest tests/ -v
 | `GMAIL_SCOPES` | `openid email https://www.googleapis.com/auth/gmail.readonly` | Space-separated Google OAuth scopes |
 | `GMAIL_OAUTH_SUCCESS_URL` | `http://localhost:5173/settings?gmail=connected` | Frontend URL used after successful Gmail OAuth |
 | `GMAIL_OAUTH_FAILURE_URL` | `http://localhost:5173/settings?gmail=error` | Frontend URL used after failed Gmail OAuth |
+| `OUTLOOK_CLIENT_ID` | empty | Microsoft OAuth client ID for Outlook / Microsoft Graph integration |
+| `OUTLOOK_CLIENT_SECRET` | empty | Microsoft OAuth client secret for Outlook / Microsoft Graph integration |
+| `OUTLOOK_REDIRECT_URI` | `http://localhost:8000/api/outlook/oauth/callback` | Microsoft OAuth callback URL. Must match the Azure app registration |
+| `OUTLOOK_SCOPES` | `offline_access User.Read Mail.Read` | Space-separated Microsoft Graph OAuth scopes |
+| `OUTLOOK_OAUTH_SUCCESS_URL` | `http://localhost:5173/settings?outlook=connected` | Frontend URL used after successful Outlook OAuth |
+| `OUTLOOK_OAUTH_FAILURE_URL` | `http://localhost:5173/settings?outlook=error` | Frontend URL used after failed Outlook OAuth |
 | `VITE_API_BASE_URL` | `/api` | Frontend API base URL |
 
 ## API Endpoints
@@ -127,6 +133,13 @@ pytest tests/ -v
 - `POST /api/gmail/refresh` - Force refresh the current user's Gmail access token, requires Bearer token
 - `DELETE /api/gmail/disconnect` - Remove the current user's stored Gmail tokens, requires Bearer token
 
+### Outlook / Microsoft Graph
+- `GET /api/outlook/authorize` - Build a Microsoft OAuth authorization URL, requires Bearer token
+- `GET /api/outlook/oauth/callback` - Microsoft OAuth callback; exchanges code, stores encrypted tokens, then redirects to the frontend
+- `GET /api/outlook/status` - Read the current user's Outlook connection state, requires Bearer token
+- `POST /api/outlook/refresh` - Force refresh the current user's Outlook access token, requires Bearer token
+- `DELETE /api/outlook/disconnect` - Remove the current user's stored Outlook tokens, requires Bearer token
+
 ## Email Categories
 
 | Category | Description |
@@ -151,7 +164,7 @@ pytest tests/ -v
 ## MVP Limitations
 
 - No advanced spam detection model
-- Gmail OAuth authorization is available, but mailbox sync is not implemented yet; email data still comes from mock JSON import
+- Gmail and Outlook OAuth authorization are available, but mailbox sync is not implemented yet; email data still comes from mock JSON import
 - No automatic email sending
 - User authentication exists with per-user data isolation; unauthenticated access to data APIs returns 401
 - AI providers are configurable with timeout, retry, and rate-limit handling, but production-grade observability and cost controls are not complete
@@ -177,7 +190,7 @@ pytest tests/ -v
 ### Mailbox Integration
 
 - [x] Implement Gmail OAuth authorization and token refresh.
-- [ ] Implement Outlook/Microsoft Graph OAuth authorization and token refresh.
+- [x] Implement Outlook/Microsoft Graph OAuth authorization and token refresh.
 - [ ] Add mailbox sync jobs for inbox fetch, incremental updates, read/unread state, and deduplication by provider message ID.
 - [x] Add manual JSON upload/import UI instead of only importing the bundled backend mock file.
 - [ ] Add attachment metadata support and decide whether attachment content should be indexed or summarized.

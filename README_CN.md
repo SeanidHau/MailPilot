@@ -78,6 +78,12 @@ pytest tests/ -v
 | `GMAIL_SCOPES` | `openid email https://www.googleapis.com/auth/gmail.readonly` | 空格分隔的 Google OAuth scope |
 | `GMAIL_OAUTH_SUCCESS_URL` | `http://localhost:5173/settings?gmail=connected` | Gmail OAuth 成功后跳回的前端地址 |
 | `GMAIL_OAUTH_FAILURE_URL` | `http://localhost:5173/settings?gmail=error` | Gmail OAuth 失败后跳回的前端地址 |
+| `OUTLOOK_CLIENT_ID` | 空 | Outlook / Microsoft Graph 集成使用的 Microsoft OAuth client ID |
+| `OUTLOOK_CLIENT_SECRET` | 空 | Outlook / Microsoft Graph 集成使用的 Microsoft OAuth client secret |
+| `OUTLOOK_REDIRECT_URI` | `http://localhost:8000/api/outlook/oauth/callback` | Microsoft OAuth 回调地址，必须与 Azure 应用注册配置一致 |
+| `OUTLOOK_SCOPES` | `offline_access User.Read Mail.Read` | 空格分隔的 Microsoft Graph OAuth scope |
+| `OUTLOOK_OAUTH_SUCCESS_URL` | `http://localhost:5173/settings?outlook=connected` | Outlook OAuth 成功后跳回的前端地址 |
+| `OUTLOOK_OAUTH_FAILURE_URL` | `http://localhost:5173/settings?outlook=error` | Outlook OAuth 失败后跳回的前端地址 |
 | `VITE_API_BASE_URL` | `/api` | 前端 API 基础 URL |
 
 ## API 端点
@@ -127,6 +133,13 @@ pytest tests/ -v
 - `POST /api/gmail/refresh` — 强制刷新当前用户 Gmail access token，需要 Bearer token
 - `DELETE /api/gmail/disconnect` — 删除当前用户已保存的 Gmail token，需要 Bearer token
 
+### Outlook / Microsoft Graph
+- `GET /api/outlook/authorize` — 生成 Microsoft OAuth 授权地址，需要 Bearer token
+- `GET /api/outlook/oauth/callback` — Microsoft OAuth 回调；交换授权码，加密存储 token，然后跳回前端
+- `GET /api/outlook/status` — 读取当前用户 Outlook 连接状态，需要 Bearer token
+- `POST /api/outlook/refresh` — 强制刷新当前用户 Outlook access token，需要 Bearer token
+- `DELETE /api/outlook/disconnect` — 删除当前用户已保存的 Outlook token，需要 Bearer token
+
 ## 邮件分类
 
 | 分类 | 说明 |
@@ -151,7 +164,7 @@ pytest tests/ -v
 ## MVP 局限性
 
 - 无高级垃圾邮件检测模型
-- 已支持 Gmail OAuth 授权，但尚未实现邮箱同步；邮件数据仍来自 mock JSON 导入
+- 已支持 Gmail 和 Outlook OAuth 授权，但尚未实现邮箱同步；邮件数据仍来自 mock JSON 导入
 - 不支持自动发送邮件
 - 已有用户认证及按用户隔离的数据管理；未登录访问数据 API 返回 401
 - AI 提供商已可配置，并支持超时、重试和限流处理，但生产级观测和成本控制尚未完善
@@ -177,7 +190,7 @@ pytest tests/ -v
 ### 邮箱集成
 
 - [x] 实现 Gmail OAuth 授权和 token 刷新。
-- [ ] 实现 Outlook/Microsoft Graph OAuth 授权和 token 刷新。
+- [x] 实现 Outlook/Microsoft Graph OAuth 授权和 token 刷新。
 - [ ] 增加邮箱同步任务：收件箱拉取、增量更新、已读/未读状态同步、按邮箱服务商 message ID 去重。
 - [x] 增加手动 JSON 上传/导入 UI，而不是只能导入后端内置 mock 文件。
 - [ ] 增加附件元数据支持，并明确是否需要索引或摘要附件内容。
