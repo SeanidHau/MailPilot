@@ -66,7 +66,8 @@ source .venv/bin/activate
 # 填充 demo 数据（创建 demo 用户、导入 mock 邮件、运行 AI 处理）
 mailpilot seed
 
-# 重置数据库并重新填充 demo 数据
+# 重置数据库并重新填充 demo 数据。PostgreSQL 下会执行 Alembic 迁移，
+# 因此只有迁移里定义的对象（例如部分索引）也会被重建。
 mailpilot reset --yes --seed
 
 # 使用自定义 demo 用户
@@ -77,6 +78,7 @@ mailpilot seed --no-ai
 ```
 
 **默认 demo 用户：** `demo@mailpilot.dev` / `demo123`  
+**安全保护：** `mailpilot reset` 默认仅允许 localhost/127.0.0.1 的 SQLite 或 PostgreSQL 数据库。非本地数据库需要加 `--force` 才会执行；未加 `--yes` 时仍会提示确认。  
 **注意：** `mailpilot reset` 会删除并重建所有表，请仅在本地开发环境使用。
 
 ## 环境变量
@@ -248,6 +250,6 @@ mailpilot seed --no-ai
 ### 运维
 
 - [x] 补充生产环境配置文档，说明稳定 `JWT_SECRET_KEY` 和 `ENCRYPTION_KEY` 的配置方式；轮换 `ENCRYPTION_KEY` 需要再加密方案。
-- [ ] 增加 CI：后端测试、前端类型检查/构建、基于全新 PostgreSQL 数据库的 Alembic 迁移验证。
+- [x] 增加 CI：后端测试、前端类型检查/构建、基于全新 PostgreSQL 数据库的 Alembic 迁移验证。
 - [x] 增加本地 demo 数据 seed/reset 命令。
 - [ ] 增加认证失败、AI 提供商失败、导入数量、提醒提取数量等日志和指标。

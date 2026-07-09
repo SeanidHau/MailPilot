@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ---- Backend tests ----
+  backend-tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: mailpilot
+          POSTGRES_PASSWORD: mailpilot
+          POSTGRES_DB: mailpilot_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mailpilot -d mailpilot_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run backend tests
+        env:
+          DATABASE_URL: postgresql://mailpilot:mailpilot@localhost:5432/mailpilot_test
+        run: |
+          cd backend
+          pytest tests/ -v
+
+  # ---- Frontend typecheck + build ----
+  frontend-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: TypeScript typecheck
+        run: |
+          cd frontend
+          npx tsc --noEmit
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+
+  # ---- Alembic migration verification on fresh database ----
+  migration-verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: mailpilot
+          POSTGRES_PASSWORD: mailpilot
+          POSTGRES_DB: mailpilot_migrate
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mailpilot -d mailpilot_migrate"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Run all migrations from scratch
+        env:
+          DATABASE_URL: postgresql://mailpilot:mailpilot@localhost:5432/mailpilot_migrate
+        run: |
+          cd backend
+          alembic upgrade head
+
+      - name: Verify migration chain is complete
+        env:
+          DATABASE_URL: postgresql://mailpilot:mailpilot@localhost:5432/mailpilot_migrate
+        run: |
+          cd backend
+          alembic check

@@ -26,10 +26,6 @@ DEFAULT_DEMO_EMAIL = "demo@mailpilot.dev"
 DEFAULT_DEMO_PASSWORD = "demo123"
 
 
-class UnsafeDatabaseError(typer.Exit):
-    pass
-
-
 def _get_alembic_config() -> AlembicConfig:
     """Build an Alembic config pointing at the current DATABASE_URL."""
     alembic_ini = Path(__file__).parent.parent / "alembic.ini"

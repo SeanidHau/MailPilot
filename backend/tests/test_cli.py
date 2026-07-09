@@ -132,10 +132,17 @@ def test_reset_force_allows_non_local_database(monkeypatch):
     monkeypatch.setattr(
         settings, "database_url", "postgresql://user:pass@prod.example.com:5432/mailpilot"
     )
-    # --force bypasses the localhost check, but the database does not exist so the
-    # command will fail at the connection step. The safety gate itself must pass.
+    # Prevent the real engine from being used for schema reset.
+    called = False
+
+    def fake_reset_schema():
+        nonlocal called
+        called = True
+
+    monkeypatch.setattr(cli, "_reset_schema", fake_reset_schema)
     result = runner.invoke(cli.app, ["reset", "--yes", "--force"])
-    assert result.exit_code != 0
+    assert result.exit_code == 0
+    assert called
     assert "non-local database" not in result.output
 
 
