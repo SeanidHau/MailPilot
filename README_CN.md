@@ -164,7 +164,7 @@ pytest tests/ -v
 ## MVP 局限性
 
 - 无高级垃圾邮件检测模型
-- 已支持 Gmail 和 Outlook OAuth 授权，但尚未实现邮箱同步；邮件数据仍来自 mock JSON 导入
+- 已支持 Gmail/Outlook OAuth 授权及邮箱同步，支持按 provider message ID 去重和已读/未读状态更新
 - 不支持自动发送邮件
 - 已有用户认证及按用户隔离的数据管理；未登录访问数据 API 返回 401
 - AI 提供商已可配置，并支持超时、重试和限流处理，但生产级观测和成本控制尚未完善
@@ -191,7 +191,7 @@ pytest tests/ -v
 
 - [x] 实现 Gmail OAuth 授权和 token 刷新。
 - [x] 实现 Outlook/Microsoft Graph OAuth 授权和 token 刷新。
-- [ ] 增加邮箱同步任务：收件箱拉取、增量更新、已读/未读状态同步、按邮箱服务商 message ID 去重。
+- [x] 增加邮箱同步任务：收件箱拉取、增量更新、已读/未读状态同步、按邮箱服务商 message ID 去重。
 - [x] 增加手动 JSON 上传/导入 UI，而不是只能导入后端内置 mock 文件。
 - [ ] 增加附件元数据支持，并明确是否需要索引或摘要附件内容。
 

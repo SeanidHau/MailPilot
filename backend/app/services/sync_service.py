@@ -35,7 +35,7 @@ def sync_gmail_inbox(db: Session, user_id: int) -> SyncResult:
 
     for msg_id in msg_ids[:MAX_EMAILS_PER_SYNC]:
         try:
-            msg = _gmail_get_message(token, msg_id)
+            msg = _gmail_get_message(token, msg_id, result)
             if not msg:
                 continue
             _upsert_email(db, user_id, "gmail", msg, result)
@@ -86,7 +86,7 @@ def _gmail_list_messages(token: str, result: SyncResult) -> list[str]:
     return []
 
 
-def _gmail_get_message(token: str, msg_id: str) -> dict | None:
+def _gmail_get_message(token: str, msg_id: str, result: SyncResult) -> dict | None:
     try:
         resp = httpx.get(
             f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{msg_id}",
@@ -96,7 +96,8 @@ def _gmail_get_message(token: str, msg_id: str) -> dict | None:
         )
         resp.raise_for_status()
         return resp.json()
-    except Exception:
+    except Exception as exc:
+        result.errors.append(f"gmail fetch {msg_id}: {exc}")
         return None
 
 
@@ -105,8 +106,11 @@ def _gmail_get_message(token: str, msg_id: str) -> dict | None:
 def _outlook_list_messages(token: str, result: SyncResult) -> list[dict]:
     try:
         resp = httpx.get(
-            "https://graph.microsoft.com/v1.0/me/messages",
-            headers={"Authorization": f"Bearer {token}"},
+            "https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Prefer": 'outlook.body-content-type="text"',
+            },
             params={
                 "$top": MAX_EMAILS_PER_SYNC,
                 "$orderby": "receivedDateTime desc",
@@ -234,7 +238,7 @@ def _extract_body(provider: str, raw: dict) -> str:
         return raw.get("snippet", "")
     if provider == "outlook":
         body = raw.get("body", {})
-        return body.get("content", "") if body.get("contentType") == "text" else ""
+        return body.get("content", "") or ""
     return ""
 
 

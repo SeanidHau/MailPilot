@@ -164,7 +164,7 @@ pytest tests/ -v
 ## MVP Limitations
 
 - No advanced spam detection model
-- Gmail and Outlook OAuth authorization are available, but mailbox sync is not implemented yet; email data still comes from mock JSON import
+- Gmail/Outlook OAuth and inbox sync are supported with per-provider message ID dedup and read/unread state sync
 - No automatic email sending
 - User authentication exists with per-user data isolation; unauthenticated access to data APIs returns 401
 - AI providers are configurable with timeout, retry, and rate-limit handling, but production-grade observability and cost controls are not complete
@@ -191,7 +191,7 @@ pytest tests/ -v
 
 - [x] Implement Gmail OAuth authorization and token refresh.
 - [x] Implement Outlook/Microsoft Graph OAuth authorization and token refresh.
-- [ ] Add mailbox sync jobs for inbox fetch, incremental updates, read/unread state, and deduplication by provider message ID.
+- [x] Add mailbox sync jobs for inbox fetch, incremental updates, read/unread state, and deduplication by provider message ID.
 - [x] Add manual JSON upload/import UI instead of only importing the bundled backend mock file.
 - [ ] Add attachment metadata support and decide whether attachment content should be indexed or summarized.
 
