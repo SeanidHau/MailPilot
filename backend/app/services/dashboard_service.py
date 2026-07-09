@@ -9,6 +9,7 @@ def get_dashboard_summary(db: Session, user_id: int):
     email_q = db.query(Email).filter(Email.user_id == user_id)
     reminder_q = db.query(Reminder).filter(Reminder.user_id == user_id)
 
+    total_emails = email_q.count()
     pending_emails = email_q.filter(Email.is_read == False).count()
     important_emails = email_q.filter(Email.importance_score >= 4).count()
     pending_reminders = reminder_q.filter(Reminder.status == "pending").count()
@@ -42,6 +43,7 @@ def get_dashboard_summary(db: Session, user_id: int):
     ]
 
     return {
+        "total_emails": total_emails,
         "pending_emails": pending_emails,
         "important_emails": important_emails,
         "pending_reminders": pending_reminders,

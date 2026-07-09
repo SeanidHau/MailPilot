@@ -12,7 +12,7 @@ export function DashboardPage() {
   if (isLoading) return <div className="empty-state">加载中...</div>
   if (!data) return null
 
-  const isEmpty = data.pending_emails === 0 && data.pending_reminders === 0
+  const isEmpty = data.total_emails === 0
 
   if (isEmpty) {
     return (

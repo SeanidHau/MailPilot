@@ -1,4 +1,5 @@
 export interface DashboardSummary {
+  total_emails: number;
   pending_emails: number;
   important_emails: number;
   pending_reminders: number;

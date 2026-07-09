@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 
 class DashboardSummary(BaseModel):
+    total_emails: int
     pending_emails: int
     important_emails: int
     pending_reminders: int
