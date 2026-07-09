@@ -31,7 +31,7 @@ export async function importEmails(): Promise<{ imported: number; skipped: numbe
 }
 
 export async function uploadEmails(emails: Record<string, any>[]): Promise<{ imported: number; skipped: number; errors: string[] }> {
-  const { data } = await api.post('/emails/import/upload', { emails });
+  const { data } = await api.post('/emails/import/upload', emails);
   return data;
 }
 

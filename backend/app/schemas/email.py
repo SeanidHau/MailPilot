@@ -12,19 +12,6 @@ class ImportResponse(BaseModel):
     errors: list[str] = []
 
 
-class EmailImportItem(BaseModel):
-    message_id: str
-    sender: str
-    recipients: str
-    subject: str
-    body: str
-    received_at: datetime.datetime
-
-
-class EmailImportRequest(BaseModel):
-    emails: list[EmailImportItem]
-
-
 class EmailBase(BaseModel):
     sender: str
     recipients: str

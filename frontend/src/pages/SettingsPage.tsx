@@ -64,7 +64,6 @@ export function SettingsPage() {
   const [importMsg, setImportMsg] = useState('')
   const [uploadMsg, setUploadMsg] = useState('')
   const [jsonText, setJsonText] = useState('')
-  const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [saveMsg, setSaveMsg] = useState('')
   const [gmailMsg, setGmailMsg] = useState('')
   const [config, setConfig] = useState<AIProviderConfig>(defaultConfig)
@@ -106,27 +105,12 @@ export function SettingsPage() {
 
   const handleJsonUpload = () => {
     setUploadMsg('')
-    let emails: Record<string, any>[]
-    if (uploadFile) {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        try {
-          emails = JSON.parse(e.target?.result as string)
-          if (!Array.isArray(emails)) throw new Error('JSON must be an array')
-          uploadMut.mutate(emails)
-        } catch (err: any) {
-          setUploadMsg(`Invalid JSON: ${err.message}`)
-        }
-      }
-      reader.readAsText(uploadFile)
-    } else if (jsonText.trim()) {
-      try {
-        emails = JSON.parse(jsonText)
-        if (!Array.isArray(emails)) throw new Error('JSON must be an array')
-        uploadMut.mutate(emails)
-      } catch (err: any) {
-        setUploadMsg(`Invalid JSON: ${err.message}`)
-      }
+    try {
+      const emails = JSON.parse(jsonText)
+      if (!Array.isArray(emails)) throw new Error('JSON must be an array')
+      uploadMut.mutate(emails)
+    } catch (err: any) {
+      setUploadMsg(`Invalid JSON: ${err.message}`)
     }
   }
 
@@ -262,21 +246,36 @@ export function SettingsPage() {
           <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)', marginBottom: '0.75rem' }}>
             Upload a JSON file or paste JSON array of email objects. Each object needs: message_id, sender, recipients, subject, body, received_at.
           </p>
-          <label style={labelStyle}>JSON File</label>
-          <input type="file" accept=".json" onChange={(e) => { setUploadFile(e.target.files?.[0] || null); setJsonText('') }}
-            style={{ ...inputStyle, border: 'none', padding: '0.375rem 0' }} />
+          <label style={labelStyle}>JSON File (auto-import on select)</label>
+          <input type="file" accept=".json" onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            setUploadMsg('');
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+              try {
+                const emails = JSON.parse(ev.target?.result as string);
+                if (!Array.isArray(emails)) throw new Error('JSON must be an array');
+                uploadMut.mutate(emails);
+              } catch (err: any) { setUploadMsg(`Invalid JSON: ${err.message}`); }
+            };
+            reader.readAsText(file);
+          }}
+          style={{ ...inputStyle, border: 'none', padding: '0.375rem 0' }} />
           <label style={labelStyle}>Or paste JSON</label>
           <textarea
             rows={5}
             placeholder='[{"message_id":"msg-001","sender":"a@b.com","recipients":"me@b.com","subject":"Hello","body":"...","received_at":"2026-01-01T00:00:00"}]'
             value={jsonText}
-            onChange={(e) => { setJsonText(e.target.value); setUploadFile(null) }}
+            onChange={(e) => setJsonText(e.target.value)}
             style={{ ...inputStyle, fontFamily: 'monospace', fontSize: '0.75rem' }}
           />
-          <button className="btn-primary" onClick={handleJsonUpload} disabled={uploadMut.isPending} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Upload size={14} />
-            {uploadMut.isPending ? 'Uploading...' : 'Upload JSON'}
-          </button>
+          {jsonText.trim() && (
+            <button className="btn-primary" onClick={handleJsonUpload} disabled={uploadMut.isPending} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Upload size={14} />
+              {uploadMut.isPending ? 'Uploading...' : 'Upload Pasted JSON'}
+            </button>
+          )}
           {uploadMsg && <div style={noticeStyle(uploadMsg.startsWith('Imported'))}>{uploadMsg}</div>}
         </div>
 

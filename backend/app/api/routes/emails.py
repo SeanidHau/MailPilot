@@ -1,11 +1,13 @@
 from __future__ import annotations
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query, HTTPException
+from typing import Any
+
+from fastapi import APIRouter, Body, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.schemas.email import ImportResponse, EmailImportRequest, EmailResponse, EmailListResponse, EmailPatchRequest, EmailDetailResponse
+from app.schemas.email import ImportResponse, EmailResponse, EmailListResponse, EmailPatchRequest, EmailDetailResponse
 from app.schemas.ai import ClassifyResponse, SummarizeResponse, GenerateDraftRequest, GenerateDraftResponse, ExtractRemindersResponse
 from app.services import email_service, draft_service, reminder_service
 from app.api.deps import require_user
@@ -20,9 +22,10 @@ def import_emails(db: Session = Depends(get_db), user=Depends(require_user)):
 
 
 @router.post("/emails/import/upload", response_model=ImportResponse)
-def import_emails_upload(body: EmailImportRequest, db: Session = Depends(get_db), user=Depends(require_user)):
-    items = [item.model_dump() for item in body.emails]
-    result = email_service.import_emails_from_list(db, items, user.id)
+def import_emails_upload(body: Any = Body(...), db: Session = Depends(get_db), user=Depends(require_user)):
+    if not isinstance(body, list):
+        raise HTTPException(status_code=422, detail="Request body must be a JSON array of email objects")
+    result = email_service.import_emails_from_list(db, body, user.id)
     return result
 
 
