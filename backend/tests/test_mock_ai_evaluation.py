@@ -1,8 +1,9 @@
 """
-Evaluation tests for AI provider quality beyond basic unit tests.
+Mock AI provider regression tests — validate rule-based classification accuracy,
+reminder extraction precision, reply draft quality, and summarization coverage.
 
-These tests validate classification accuracy, reminder extraction precision,
-reply draft quality, and summarization coverage against the mock email corpus.
+These tests target MockAIProvider specifically and do NOT cover real LLM providers.
+For OpenAI/Anthropic evaluation, run with real API keys and a separate eval harness.
 """
 from app.ai.providers.mock import MockAIProvider
 
@@ -112,6 +113,17 @@ def test_no_false_reminders_for_promotion():
     assert "payment" not in types
 
 
+def test_no_match_generates_followup_reminder():
+    """Mock provider generates a fallback 'other' follow-up when no keywords match.
+    This differs from the LLM prompt which expects []; the mock behavior is
+    intentionally more aggressive to surface every email as actionable."""
+    email = {"subject": "Just a hello", "body": "Nothing urgent here. Just checking in."}
+    reminders, error = provider.extract_reminders(email)
+    assert len(reminders) >= 1
+    assert reminders[0]["reminder_type"] == "other"
+    assert "follow" in reminders[0]["title"].lower()
+
+
 def test_extract_reminders_returns_error_none():
     """Mock provider always returns error=None."""
     for item in GROUND_TRUTH:
@@ -197,6 +209,8 @@ def test_empty_email_fields():
 
 
 def test_missing_fields():
-    """Provider handles missing keys gracefully."""
+    """Provider handles missing keys gracefully with safe defaults."""
     category, score, error = provider.classify_email({})
     assert category == "normal"
+    assert 1 <= score <= 5
+    assert error is None

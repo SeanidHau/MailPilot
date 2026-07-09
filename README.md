@@ -55,6 +55,30 @@ source .venv/bin/activate
 pytest tests/ -v
 ```
 
+### Demo Data CLI
+
+A small CLI is included for local demo data seeding and resetting. It is available after installing the backend package.
+
+```bash
+cd backend
+source .venv/bin/activate
+
+# Seed demo data (creates demo user + imports mock emails + runs AI processing)
+mailpilot seed
+
+# Reset the database and seed demo data
+mailpilot reset --yes --seed
+
+# Use a custom demo user
+mailpilot seed --email admin@example.com --password changeme
+
+# Skip AI classification/summarization/drafts/reminders to save time or API quota
+mailpilot seed --no-ai
+```
+
+**Default demo user:** `demo@mailpilot.dev` / `demo123`  
+**Warning:** `mailpilot reset` drops and recreates all tables. Use it only in local development.
+
 ## Environment Variables
 
 | Variable | Default | Description |
@@ -225,5 +249,5 @@ pytest tests/ -v
 
 - [x] Document production setup for stable `JWT_SECRET_KEY` and `ENCRYPTION_KEY`; rotating `ENCRYPTION_KEY` requires a re-encryption plan.
 - [ ] Add CI jobs for backend tests, frontend typecheck/build, and Alembic migration verification on a fresh PostgreSQL database.
-- [ ] Add seed/reset commands for local demo data.
+- [x] Add seed/reset commands for local demo data.
 - [ ] Add logging/metrics for auth failures, AI provider failures, import counts, and reminder extraction counts.
