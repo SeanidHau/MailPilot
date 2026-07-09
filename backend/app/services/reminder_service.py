@@ -1,10 +1,13 @@
 from __future__ import annotations
+import logging
 from typing import Optional
 
 from sqlalchemy.orm import Session
 
 from app.db.models import Reminder, Email
 from app.services.ai_service import get_ai_provider
+
+logger = logging.getLogger(__name__)
 
 
 def get_reminders(db: Session, user_id: int, status: Optional[str] = None, page: int = 1, page_size: int = 20):
@@ -53,6 +56,8 @@ def extract_reminders(db: Session, email_id: int, user_id: int):
         "subject": email.subject,
         "body": email.body,
     })
+    if error:
+        logger.warning("ai_provider_failure", extra={"user_id": user_id, "email_id": email_id, "operation": "extract_reminders", "error_type": error.type})
 
     from datetime import datetime as dt
 
@@ -79,4 +84,8 @@ def extract_reminders(db: Session, email_id: int, user_id: int):
     db.commit()
     for r in created:
         db.refresh(r)
+    logger.info(
+        "reminder_extraction_count",
+        extra={"user_id": user_id, "email_id": email_id, "created": len(created), "provider_error": bool(error)},
+    )
     return created, error

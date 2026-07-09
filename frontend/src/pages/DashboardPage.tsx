@@ -1,15 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate, Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { ArrowRight, Bell, Inbox, Star } from 'lucide-react'
 import { fetchDashboard } from '../api/dashboard'
 import { StatCard } from '../components/StatCard'
 import { CategoryBadge } from '../components/CategoryBadge'
-import { Inbox, Star, Bell, ArrowRight } from 'lucide-react'
+import { OnboardingSteps } from '../components/OnboardingSteps'
 
 export function DashboardPage() {
   const { data, isLoading } = useQuery({ queryKey: ['dashboard'], queryFn: fetchDashboard })
   const navigate = useNavigate()
 
-  if (isLoading) return <div className="empty-state">加载中...</div>
+  if (isLoading) return <div className="empty-state">Loading...</div>
   if (!data) return null
 
   const isEmpty = data.total_emails === 0
@@ -17,16 +18,19 @@ export function DashboardPage() {
   if (isEmpty) {
     return (
       <div>
-        <div className="page-header"><h1>仪表盘</h1></div>
+        <div className="page-header"><h1>Dashboard</h1></div>
+        <div style={{ marginBottom: '1rem' }}>
+          <OnboardingSteps />
+        </div>
         <div className="card" style={{ textAlign: 'center', padding: '3rem 2rem' }}>
           <Inbox size={48} style={{ color: 'var(--color-text-muted)', marginBottom: '1rem' }} />
-          <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '0.5rem' }}>欢迎使用 MailPilot</h2>
-          <p style={{ color: 'var(--color-text-muted)', marginBottom: '1.5rem', maxWidth: 400, marginLeft: 'auto', marginRight: 'auto' }}>
-            还没有邮件数据。你可以导入示例数据、上传 JSON 文件，或连接邮箱开始使用。
+          <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '0.5rem' }}>Welcome to MailPilot</h2>
+          <p style={{ color: 'var(--color-text-muted)', marginBottom: '1.5rem', maxWidth: 440, marginLeft: 'auto', marginRight: 'auto' }}>
+            Import mock data, upload JSON, or connect a mailbox from settings to start reviewing emails.
           </p>
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link to="/settings" className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}>
-              前往设置 <ArrowRight size={14} />
+            <Link to="/settings#import" className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}>
+              Open import tools <ArrowRight size={14} />
             </Link>
           </div>
         </div>
@@ -36,22 +40,22 @@ export function DashboardPage() {
 
   return (
     <div>
-      <div className="page-header"><h1>仪表盘</h1></div>
+      <div className="page-header"><h1>Dashboard</h1></div>
 
       <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-        <StatCard label="待处理邮件" value={data.pending_emails} color="#f59e0b" />
-        <StatCard label="重要邮件" value={data.important_emails} color="#ef4444" />
-        <StatCard label="待办提醒" value={data.pending_reminders} color="#3b82f6" />
+        <StatCard label="Pending emails" value={data.pending_emails} color="#f59e0b" />
+        <StatCard label="Important emails" value={data.important_emails} color="#ef4444" />
+        <StatCard label="Pending reminders" value={data.pending_reminders} color="#3b82f6" />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
         <div>
           <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem' }}>
             <Star size={16} style={{ marginRight: 6 }} />
-            最近重要邮件
+            Recent important emails
           </h2>
           {data.recent_important_emails.length === 0 ? (
-            <div className="empty-state">暂无重要邮件</div>
+            <div className="empty-state">No important emails yet.</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {data.recent_important_emails.map((e) => (
@@ -71,10 +75,10 @@ export function DashboardPage() {
         <div>
           <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem' }}>
             <Bell size={16} style={{ marginRight: 6 }} />
-            近期提醒
+            Upcoming reminders
           </h2>
           {data.upcoming_reminders.length === 0 ? (
-            <div className="empty-state">暂无提醒</div>
+            <div className="empty-state">No reminders yet.</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {data.upcoming_reminders.map((r) => (
@@ -84,7 +88,7 @@ export function DashboardPage() {
                     {r.email_subject}
                   </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
-                    {r.due_at ? new Date(r.due_at).toLocaleDateString() : '无截止日期'} &middot; {r.reminder_type}
+                    {r.due_at ? new Date(r.due_at).toLocaleDateString() : 'No due date'} &middot; {r.reminder_type}
                   </div>
                 </div>
               ))}

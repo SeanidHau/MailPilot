@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Brain, Database, ExternalLink, FileJson, Mail, RefreshCw, Save, Unlink, Upload } from 'lucide-react'
 import { importEmails, uploadEmails } from '../api/emails'
+import { useAuth } from '../app/AuthContext'
 import { syncGmailInbox, syncOutlookInbox } from '../api/sync'
 import {
   disconnectGmail,
@@ -64,8 +65,14 @@ function noticeStyle(ok: boolean): React.CSSProperties {
   }
 }
 
+function isAuthError(err: Error) {
+  const message = err.message.toLowerCase()
+  return message.includes('not authenticated') || message.includes('unauthorized') || message.includes('401')
+}
+
 export function SettingsPage() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
   const [importMsg, setImportMsg] = useState('')
   const [uploadMsg, setUploadMsg] = useState('')
   const [jsonText, setJsonText] = useState('')
@@ -74,7 +81,7 @@ export function SettingsPage() {
   const [outlookMsg, setOutlookMsg] = useState('')
   const [config, setConfig] = useState<AIProviderConfig>(defaultConfig)
 
-  const { data: savedConfig } = useQuery({
+  const { data: savedConfig, error: settingsError } = useQuery({
     queryKey: ['aiSettings'],
     queryFn: fetchAISettings,
   })
@@ -131,7 +138,13 @@ export function SettingsPage() {
       setSaveMsg('AI settings saved.')
       queryClient.invalidateQueries({ queryKey: ['aiSettings'] })
     },
-    onError: (err: Error) => setSaveMsg(`Save failed: ${err.message}`),
+    onError: (err: Error) => {
+      if (isAuthError(err)) {
+        setSaveMsg('Save failed: your login has expired. Please sign in again before saving authenticated settings.')
+        return
+      }
+      setSaveMsg(`Save failed: ${err.message}`)
+    },
   })
 
   const connectGmailMut = useMutation({
@@ -209,9 +222,14 @@ export function SettingsPage() {
   return (
     <div>
       <div className="page-header"><h1>Settings</h1></div>
+      {(!user || (settingsError && isAuthError(settingsError))) && (
+        <div style={{ ...noticeStyle(false), marginBottom: '1rem' }}>
+          You need an active login session to save AI settings, connect mailboxes, or import mailbox data.
+        </div>
+      )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-        <div className="card">
+        <div id="ai-provider" className="card">
           <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: 8 }}>
             <Brain size={18} /> AI Provider
           </h2>
@@ -298,7 +316,7 @@ export function SettingsPage() {
           {gmailMsg && <div style={noticeStyle(!gmailMsg.includes('failed'))}>{gmailMsg}</div>}
         </div>
 
-        <div className="card">
+        <div id="import" className="card">
           <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: 8 }}>
             <Mail size={18} /> Outlook Integration
           </h2>

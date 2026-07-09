@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import logging
+
 from sqlalchemy.orm import Session
 
 from app.db.models import Draft, Email
 from app.services.ai_service import get_ai_provider
+
+logger = logging.getLogger(__name__)
 
 
 def get_drafts(db: Session, user_id: int, page: int = 1, page_size: int = 20):
@@ -40,6 +44,8 @@ def generate_draft(db: Session, email_id: int, tone: str, user_id: int):
         "body": email.body,
         "sender": email.sender,
     }, tone)
+    if error:
+        logger.warning("ai_provider_failure", extra={"user_id": user_id, "email_id": email_id, "operation": "generate_reply", "error_type": error.type})
 
     draft = Draft(email_id=email_id, tone=tone, content=content, user_id=user_id)
     db.add(draft)

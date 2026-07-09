@@ -41,12 +41,13 @@ def cli_db(monkeypatch):
 
 def _alembic_version() -> str | None:
     engine = create_engine(settings.database_url)
-    with engine.connect() as conn:
-        try:
+    try:
+        with engine.connect() as conn:
             row = conn.execute(text("SELECT version_num FROM alembic_version")).fetchone()
-            return row[0] if row else None
-        finally:
             conn.commit()
+            return row[0] if row else None
+    finally:
+        engine.dispose()
 
 
 def test_seed_creates_demo_data(cli_db):
