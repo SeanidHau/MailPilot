@@ -140,6 +140,10 @@ pytest tests/ -v
 - `POST /api/outlook/refresh` — 强制刷新当前用户 Outlook access token，需要 Bearer token
 - `DELETE /api/outlook/disconnect` — 删除当前用户已保存的 Outlook token，需要 Bearer token
 
+### 邮箱同步
+- `POST /api/sync/gmail` — 从 Gmail 收件箱同步邮件，按 provider message ID 去重，需要 Bearer token
+- `POST /api/sync/outlook` — 从 Outlook 收件箱同步邮件，按 provider message ID 去重，需要 Bearer token
+
 ## 邮件分类
 
 | 分类 | 说明 |

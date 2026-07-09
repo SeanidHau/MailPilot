@@ -140,6 +140,10 @@ pytest tests/ -v
 - `POST /api/outlook/refresh` - Force refresh the current user's Outlook access token, requires Bearer token
 - `DELETE /api/outlook/disconnect` - Remove the current user's stored Outlook tokens, requires Bearer token
 
+### Mailbox Sync
+- `POST /api/sync/gmail` - Sync Gmail inbox emails with dedup by provider message ID, requires Bearer token
+- `POST /api/sync/outlook` - Sync Outlook inbox emails with dedup by provider message ID, requires Bearer token
+
 ## Email Categories
 
 | Category | Description |
