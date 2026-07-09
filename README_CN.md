@@ -75,13 +75,13 @@ pytest tests/ -v
 | `GMAIL_CLIENT_ID` | 空 | Gmail 集成使用的 Google OAuth client ID |
 | `GMAIL_CLIENT_SECRET` | 空 | Gmail 集成使用的 Google OAuth client secret |
 | `GMAIL_REDIRECT_URI` | `http://localhost:8000/api/gmail/oauth/callback` | Google OAuth 回调地址，必须与 Google Cloud OAuth client 配置一致 |
-| `GMAIL_SCOPES` | `openid email https://www.googleapis.com/auth/gmail.readonly` | 空格分隔的 Google OAuth scope |
+| `GMAIL_SCOPES` | `openid email https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send` | 空格分隔的 Google OAuth scope |
 | `GMAIL_OAUTH_SUCCESS_URL` | `http://localhost:5173/settings?gmail=connected` | Gmail OAuth 成功后跳回的前端地址 |
 | `GMAIL_OAUTH_FAILURE_URL` | `http://localhost:5173/settings?gmail=error` | Gmail OAuth 失败后跳回的前端地址 |
 | `OUTLOOK_CLIENT_ID` | 空 | Outlook / Microsoft Graph 集成使用的 Microsoft OAuth client ID |
 | `OUTLOOK_CLIENT_SECRET` | 空 | Outlook / Microsoft Graph 集成使用的 Microsoft OAuth client secret |
 | `OUTLOOK_REDIRECT_URI` | `http://localhost:8000/api/outlook/oauth/callback` | Microsoft OAuth 回调地址，必须与 Azure 应用注册配置一致 |
-| `OUTLOOK_SCOPES` | `offline_access User.Read Mail.Read` | 空格分隔的 Microsoft Graph OAuth scope |
+| `OUTLOOK_SCOPES` | `offline_access User.Read Mail.Read Mail.Send` | 空格分隔的 Microsoft Graph OAuth scope |
 | `OUTLOOK_OAUTH_SUCCESS_URL` | `http://localhost:5173/settings?outlook=connected` | Outlook OAuth 成功后跳回的前端地址 |
 | `OUTLOOK_OAUTH_FAILURE_URL` | `http://localhost:5173/settings?outlook=error` | Outlook OAuth 失败后跳回的前端地址 |
 | `VITE_API_BASE_URL` | `/api` | 前端 API 基础 URL |
@@ -202,7 +202,7 @@ pytest tests/ -v
 ### 邮件操作
 
 - [ ] 实现从已保存草稿发送真实邮件的可选流程，并加入明确的发送确认步骤。
-- [ ] 增加草稿发送状态，例如 `ready_to_send`、`sent`、`send_failed`。
+- [x] 增加草稿发送状态，例如 `ready_to_send`、`sent`、`send_failed`。
 - [ ] 增加用户触发邮件操作和 AI 内容编辑的审计日志。
 
 ### AI 可靠性

@@ -45,7 +45,10 @@ def send_draft(db: Session, draft_id: int, user_id: int) -> Draft:
             fail("No connected mailbox. Connect Gmail or Outlook in Settings first.")
         draft.status = "sent"
         draft.send_error = None
-    except SendError:
+    except SendError as exc:
+        draft.status = "send_failed"
+        draft.send_error = str(exc)
+        db.commit()
         raise
     except Exception as exc:
         logger.error("Unexpected send error: %s", exc)

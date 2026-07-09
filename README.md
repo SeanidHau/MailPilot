@@ -75,13 +75,13 @@ pytest tests/ -v
 | `GMAIL_CLIENT_ID` | empty | Google OAuth client ID for Gmail integration |
 | `GMAIL_CLIENT_SECRET` | empty | Google OAuth client secret for Gmail integration |
 | `GMAIL_REDIRECT_URI` | `http://localhost:8000/api/gmail/oauth/callback` | Google OAuth callback URL. Must match the Google Cloud OAuth client |
-| `GMAIL_SCOPES` | `openid email https://www.googleapis.com/auth/gmail.readonly` | Space-separated Google OAuth scopes |
+| `GMAIL_SCOPES` | `openid email https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send` | Space-separated Google OAuth scopes |
 | `GMAIL_OAUTH_SUCCESS_URL` | `http://localhost:5173/settings?gmail=connected` | Frontend URL used after successful Gmail OAuth |
 | `GMAIL_OAUTH_FAILURE_URL` | `http://localhost:5173/settings?gmail=error` | Frontend URL used after failed Gmail OAuth |
 | `OUTLOOK_CLIENT_ID` | empty | Microsoft OAuth client ID for Outlook / Microsoft Graph integration |
 | `OUTLOOK_CLIENT_SECRET` | empty | Microsoft OAuth client secret for Outlook / Microsoft Graph integration |
 | `OUTLOOK_REDIRECT_URI` | `http://localhost:8000/api/outlook/oauth/callback` | Microsoft OAuth callback URL. Must match the Azure app registration |
-| `OUTLOOK_SCOPES` | `offline_access User.Read Mail.Read` | Space-separated Microsoft Graph OAuth scopes |
+| `OUTLOOK_SCOPES` | `offline_access User.Read Mail.Read Mail.Send` | Space-separated Microsoft Graph OAuth scopes |
 | `OUTLOOK_OAUTH_SUCCESS_URL` | `http://localhost:5173/settings?outlook=connected` | Frontend URL used after successful Outlook OAuth |
 | `OUTLOOK_OAUTH_FAILURE_URL` | `http://localhost:5173/settings?outlook=error` | Frontend URL used after failed Outlook OAuth |
 | `VITE_API_BASE_URL` | `/api` | Frontend API base URL |
@@ -202,7 +202,7 @@ pytest tests/ -v
 ### Email Actions
 
 - [ ] Implement optional real email sending from saved drafts, with an explicit confirmation step.
-- [ ] Add draft-to-send workflow state such as `ready_to_send`, `sent`, and `send_failed`.
+- [x] Add draft-to-send workflow state such as `ready_to_send`, `sent`, and `send_failed`.
 - [ ] Add audit logs for user-triggered email actions and AI-generated content edits.
 
 ### AI Reliability
