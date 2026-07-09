@@ -176,7 +176,7 @@ pytest tests/ -v
 - [x] Implement Gmail OAuth authorization and token refresh.
 - [ ] Implement Outlook/Microsoft Graph OAuth authorization and token refresh.
 - [ ] Add mailbox sync jobs for inbox fetch, incremental updates, read/unread state, and deduplication by provider message ID.
-- [ ] Add manual JSON upload/import UI instead of only importing the bundled backend mock file.
+- [x] Add manual JSON upload/import UI instead of only importing the bundled backend mock file.
 - [ ] Add attachment metadata support and decide whether attachment content should be indexed or summarized.
 
 ### Email Actions

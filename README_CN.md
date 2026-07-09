@@ -176,7 +176,7 @@ pytest tests/ -v
 - [x] 实现 Gmail OAuth 授权和 token 刷新。
 - [ ] 实现 Outlook/Microsoft Graph OAuth 授权和 token 刷新。
 - [ ] 增加邮箱同步任务：收件箱拉取、增量更新、已读/未读状态同步、按邮箱服务商 message ID 去重。
-- [ ] 增加手动 JSON 上传/导入 UI，而不是只能导入后端内置 mock 文件。
+- [x] 增加手动 JSON 上传/导入 UI，而不是只能导入后端内置 mock 文件。
 - [ ] 增加附件元数据支持，并明确是否需要索引或摘要附件内容。
 
 ### 邮件操作
