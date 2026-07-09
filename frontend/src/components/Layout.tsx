@@ -15,12 +15,9 @@ export function Layout() {
   const navigate = useNavigate();
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
-      <aside style={{
-        width: 220, background: 'var(--color-surface)', borderRight: '1px solid var(--color-border)',
-        padding: '1rem', display: 'flex', flexDirection: 'column', gap: 4,
-      }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, padding: '0.5rem 0.75rem', marginBottom: '0.5rem' }}>
+    <div className="app-shell">
+      <aside className="app-sidebar">
+        <h2 className="app-brand">
           MailPilot
         </h2>
         {navItems.map(({ to, icon: Icon, label }) => (
@@ -28,49 +25,33 @@ export function Layout() {
             key={to}
             to={to}
             end={to === '/'}
-            style={({ isActive }) => ({
-              display: 'flex', alignItems: 'center', gap: 10,
-              padding: '0.5rem 0.75rem', borderRadius: 'var(--radius)',
-              background: isActive ? 'var(--color-primary)' : 'transparent',
-              color: isActive ? '#fff' : 'var(--color-text)',
-              textDecoration: 'none', fontSize: '0.9rem',
-            })}
+            className={({ isActive }) => `app-nav-link${isActive ? ' active' : ''}`}
           >
             <Icon size={18} />
             {label}
           </NavLink>
         ))}
-        <div style={{ marginTop: 'auto', borderTop: '1px solid var(--color-border)', paddingTop: '0.75rem' }}>
+        <div className="app-account">
           {user ? (
             <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0.5rem 0.75rem', fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>
+              <div className="app-account-email">
                 <User size={14} /> {user.email}
               </div>
               <button
                 onClick={() => { logout(); navigate('/login'); }}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '0.5rem 0.75rem',
-                  borderRadius: 'var(--radius)', fontSize: '0.875rem', cursor: 'pointer',
-                  background: 'transparent', color: 'var(--color-text)', border: 'none',
-                }}
+                className="app-logout"
               >
                 <LogOut size={16} /> 退出登录
               </button>
             </>
           ) : (
-            <NavLink to="/login" style={({ isActive }) => ({
-              display: 'flex', alignItems: 'center', gap: 10,
-              padding: '0.5rem 0.75rem', borderRadius: 'var(--radius)',
-              background: isActive ? 'var(--color-primary)' : 'transparent',
-              color: isActive ? '#fff' : 'var(--color-text)',
-              textDecoration: 'none', fontSize: '0.9rem',
-            })}>
+            <NavLink to="/login" className={({ isActive }) => `app-nav-link${isActive ? ' active' : ''}`}>
               <User size={18} /> 登录
             </NavLink>
           )}
         </div>
       </aside>
-      <main style={{ flex: 1, padding: '2rem', maxWidth: 1100 }}>
+      <main className="app-main">
         <Outlet />
       </main>
     </div>
