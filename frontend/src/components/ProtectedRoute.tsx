@@ -14,7 +14,16 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return (
+      <Navigate
+        to="/login"
+        state={{
+          from: location,
+          authNotice: 'Please sign in before opening settings, mailbox data, or AI configuration.',
+        }}
+        replace
+      />
+    );
   }
 
   return <>{children}</>;

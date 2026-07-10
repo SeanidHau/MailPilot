@@ -12,6 +12,7 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const from = (location.state as any)?.from?.pathname || '/';
+  const authNotice = (location.state as any)?.authNotice;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,6 +34,9 @@ export function LoginPage() {
         <h1 style={{ fontSize: '1.5rem', fontWeight: 700, textAlign: 'center', marginBottom: '1.5rem' }}>登录 MailPilot</h1>
         {error && (
           <div style={{ padding: '0.5rem 0.75rem', marginBottom: '1rem', borderRadius: 'var(--radius)', background: '#fef2f2', color: '#991b1b', fontSize: '0.875rem' }}>{error}</div>
+        )}
+        {!error && authNotice && (
+          <div style={{ padding: '0.5rem 0.75rem', marginBottom: '1rem', borderRadius: 'var(--radius)', background: '#eff6ff', color: '#1d4ed8', fontSize: '0.875rem' }}>{authNotice}</div>
         )}
         <form onSubmit={handleSubmit}>
           <label style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--color-text-muted)' }}>邮箱</label>

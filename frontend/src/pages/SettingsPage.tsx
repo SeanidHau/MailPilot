@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Brain, Database, ExternalLink, FileJson, Mail, RefreshCw, Save, Unlink, Upload } from 'lucide-react'
 import { importEmails, uploadEmails } from '../api/emails'
-import { useAuth } from '../app/AuthContext'
 import { syncGmailInbox, syncOutlookInbox } from '../api/sync'
 import {
   disconnectGmail,
@@ -72,7 +71,6 @@ function isAuthError(err: Error) {
 
 export function SettingsPage() {
   const queryClient = useQueryClient()
-  const { user } = useAuth()
   const [importMsg, setImportMsg] = useState('')
   const [uploadMsg, setUploadMsg] = useState('')
   const [jsonText, setJsonText] = useState('')
@@ -222,9 +220,9 @@ export function SettingsPage() {
   return (
     <div>
       <div className="page-header"><h1>Settings</h1></div>
-      {(!user || (settingsError && isAuthError(settingsError))) && (
+      {settingsError && isAuthError(settingsError) && (
         <div style={{ ...noticeStyle(false), marginBottom: '1rem' }}>
-          You need an active login session to save AI settings, connect mailboxes, or import mailbox data.
+          Your login session has expired. Please sign in again before saving AI settings, connecting mailboxes, or importing mailbox data.
         </div>
       )}
 
@@ -316,7 +314,7 @@ export function SettingsPage() {
           {gmailMsg && <div style={noticeStyle(!gmailMsg.includes('failed'))}>{gmailMsg}</div>}
         </div>
 
-        <div id="import" className="card">
+        <div className="card">
           <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: 8 }}>
             <Mail size={18} /> Outlook Integration
           </h2>
@@ -350,7 +348,7 @@ export function SettingsPage() {
           {outlookMsg && <div style={noticeStyle(!outlookMsg.includes('failed'))}>{outlookMsg}</div>}
         </div>
 
-        <div className="card">
+        <div id="import" className="card">
           <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: 8 }}>
             <FileJson size={18} /> JSON Upload Import
           </h2>
@@ -390,7 +388,7 @@ export function SettingsPage() {
           {uploadMsg && <div style={noticeStyle(uploadMsg.startsWith('Imported'))}>{uploadMsg}</div>}
         </div>
 
-        <div className="card">
+        <div id="mock-import" className="card">
           <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: 8 }}>
             <Upload size={18} /> Mock Data Import
           </h2>
