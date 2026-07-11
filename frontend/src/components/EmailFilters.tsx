@@ -7,7 +7,7 @@ interface Props {
 
 export function EmailFilters({ filters, onChange }: Props) {
   return (
-    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+    <div className="email-filters" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
       <input
         placeholder="搜索邮件..."
         value={filters.q}

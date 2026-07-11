@@ -49,7 +49,7 @@ export function DraftsPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {drafts.map((draft: any) => (
             <div key={draft.id} className="card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <div className="draft-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                 <div>
                   <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>草稿 #{draft.id}</span>
                   <span style={{
