@@ -135,3 +135,15 @@ class OutlookAccount(Base):
     expires_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True)
     connected_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    action: Mapped[str] = mapped_column(String(64))  # email_import, email_classify, email_summarize, draft_generate, reminder_extract, draft_send, category_change
+    target_type: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)  # email, draft, reminder
+    target_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    detail: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # extra info like tone, category change
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now(), index=True)

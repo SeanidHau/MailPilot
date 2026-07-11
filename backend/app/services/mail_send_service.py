@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Draft, GmailAccount, OutlookAccount
 from app.core import crypto
+from app.services import audit_service
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,7 @@ def send_draft(db: Session, draft_id: int, user_id: int) -> Draft:
         logger.error("Unexpected send error: %s", exc)
         fail(str(exc))
 
+    audit_service.log_action(db, user_id, "draft_send", "draft", draft_id, f"email={draft.email_id}")
     db.commit()
     db.refresh(draft)
     return draft

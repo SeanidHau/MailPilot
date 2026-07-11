@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Reminder, Email
 from app.services.ai_service import get_ai_provider
+from app.services import audit_service
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +82,7 @@ def extract_reminders(db: Session, email_id: int, user_id: int):
         db.add(reminder)
         created.append(reminder)
 
+    audit_service.log_action(db, user_id, "reminder_extract", "reminder", email_id, f"created {len(created)}")
     db.commit()
     for r in created:
         db.refresh(r)

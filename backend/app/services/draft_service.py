@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Draft, Email
 from app.services.ai_service import get_ai_provider
+from app.services import audit_service
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +50,7 @@ def generate_draft(db: Session, email_id: int, tone: str, user_id: int):
 
     draft = Draft(email_id=email_id, tone=tone, content=content, user_id=user_id)
     db.add(draft)
+    audit_service.log_action(db, user_id, "draft_generate", "draft", None, f"email={email_id} tone={tone}")
     db.commit()
     db.refresh(draft)
     return draft, error

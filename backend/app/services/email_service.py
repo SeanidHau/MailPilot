@@ -9,6 +9,7 @@ from sqlalchemy import or_
 
 from app.db.models import Email, ClassificationFeedback
 from app.services.ai_service import get_ai_provider
+from app.services import audit_service
 
 MOCK_DATA_PATH = Path(__file__).parent.parent / "mock_data" / "emails.json"
 logger = logging.getLogger(__name__)
@@ -31,6 +32,7 @@ def import_mock_emails(db: Session, user_id: int) -> int:
         db.add(email)
         imported += 1
 
+    audit_service.log_action(db, user_id, "email_import", "email", None, f"imported {imported}")
     db.commit()
     return imported
 
@@ -141,6 +143,7 @@ def patch_email(db: Session, email_id: int, updates: dict, user_id: int) -> Emai
             user_id=user_id,
         )
         db.add(fb)
+        audit_service.log_action(db, user_id, "category_change", "email", email_id, f"{old_category}->{updates['category']}")
 
     db.commit()
     db.refresh(email)
@@ -163,6 +166,7 @@ def classify_email(db: Session, email_id: int, user_id: int):
 
     email.category = category
     email.importance_score = score
+    audit_service.log_action(db, user_id, "email_classify", "email", email_id, f"{category} score={score}")
     db.commit()
     db.refresh(email)
     return email, error
@@ -182,6 +186,7 @@ def summarize_email(db: Session, email_id: int, user_id: int):
         logger.warning("ai_provider_failure", extra={"user_id": user_id, "email_id": email_id, "operation": "summarize", "error_type": error.type})
 
     email.summary = summary
+    audit_service.log_action(db, user_id, "email_summarize", "email", email_id, None)
     db.commit()
     db.refresh(email)
     return email, error
