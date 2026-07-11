@@ -31,6 +31,12 @@ class TestSpamSignals:
         assert "sender:noreply" in signals
         assert "sender:suspicious_domain" in signals
 
+    def test_sender_display_name_normalized(self):
+        """'Prize Team <noreply@spam.xyz>' should match same rules as bare addr."""
+        signals = _sender_signal("Prize Team <noreply@spam.xyz>")
+        assert "sender:noreply" in signals
+        assert "sender:suspicious_domain" in signals
+
     def test_sender_numeric_pattern(self):
         signals = _sender_signal("user123456@example.com")
         assert "sender:numeric_pattern" in signals

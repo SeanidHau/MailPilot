@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 import re
-from collections import Counter
+from email.utils import parseaddr
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -71,14 +71,20 @@ def _exclamation_signal(text: str) -> list[str]:
 
 # -- Signal: suspicious sender patterns --
 
+def _normalize_sender(sender: str) -> str:
+    """Extract addr from 'Name <addr@domain>' format."""
+    _, addr = parseaddr(sender)
+    return addr.lower() if addr else sender.lower()
+
+
 def _sender_signal(sender: str) -> list[str]:
     signals = []
-    lower = sender.lower()
-    if any(w in lower for w in ["noreply", "no-reply", "donotreply"]):
+    addr = _normalize_sender(sender)
+    if any(w in addr for w in ["noreply", "no-reply", "donotreply"]):
         signals.append("sender:noreply")
-    if re.search(r"\d{5,}", lower):
+    if re.search(r"\d{5,}", addr):
         signals.append("sender:numeric_pattern")
-    if "@" in lower and re.search(r"\.(xyz|top|loan|click|pw|buzz)$", lower):
+    if "@" in addr and re.search(r"\.(xyz|top|loan|click|pw|buzz)$", addr):
         signals.append("sender:suspicious_domain")
     return signals
 
@@ -87,10 +93,10 @@ def _sender_signal(sender: str) -> list[str]:
 
 def _reputation_signal(db: Session, user_id: int, sender: str) -> list[str]:
     """Check classification_feedback for user's past spam reports against this sender."""
-    # Extract domain for broader matching
+    addr = _normalize_sender(sender)
     domain = ""
-    if "@" in sender:
-        domain = sender.split("@")[-1].lower()
+    if "@" in addr:
+        domain = addr.split("@")[-1]
 
     # Check emails from this sender that were classified as spam by user
     spam_by_sender = (

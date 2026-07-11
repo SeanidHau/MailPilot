@@ -10,9 +10,10 @@ from typing import Optional
 import httpx
 from sqlalchemy.orm import Session
 
-from app.db.models import Draft, GmailAccount, OutlookAccount
-from app.core import crypto
+from app.db.models import Draft
 from app.services import audit_service
+from app.services.gmail_service import get_valid_access_token as get_gmail_token
+from app.services.outlook_service import get_valid_access_token as get_outlook_token
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,7 @@ def send_draft(db: Session, draft_id: int, user_id: int) -> Draft:
     if draft.status == "sent":
         raise SendError("Draft already sent")
 
+    from app.db.models import GmailAccount, OutlookAccount
     gmail = db.query(GmailAccount).filter(GmailAccount.user_id == user_id).first()
     outlook = db.query(OutlookAccount).filter(OutlookAccount.user_id == user_id).first()
 
@@ -39,9 +41,9 @@ def send_draft(db: Session, draft_id: int, user_id: int) -> Draft:
 
     try:
         if gmail:
-            _send_via_gmail(draft, gmail)
+            _send_via_gmail(draft, db)
         elif outlook:
-            _send_via_outlook(draft, outlook)
+            _send_via_outlook(draft, db)
         else:
             fail("No connected mailbox. Connect Gmail or Outlook in Settings first.")
         draft.status = "sent"
@@ -70,10 +72,8 @@ def _get_recipient_address(draft: Draft) -> str:
 
 # -- Gmail send via Gmail API --
 
-def _send_via_gmail(draft: Draft, account: GmailAccount):
-    token = crypto.decrypt(account.access_token)
-    if not token:
-        raise SendError("Gmail access token not available. Refresh token first.")
+def _send_via_gmail(draft: Draft, db: Session):
+    token = get_gmail_token(db, draft.user_id)
 
     msg = MIMEText(draft.content)
     msg["To"] = _get_recipient_address(draft)
@@ -92,10 +92,8 @@ def _send_via_gmail(draft: Draft, account: GmailAccount):
 
 # -- Outlook send via Microsoft Graph --
 
-def _send_via_outlook(draft: Draft, account: OutlookAccount):
-    token = crypto.decrypt(account.access_token)
-    if not token:
-        raise SendError("Outlook access token not available. Refresh token first.")
+def _send_via_outlook(draft: Draft, db: Session):
+    token = get_outlook_token(db, draft.user_id)
 
     body = {
         "message": {

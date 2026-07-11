@@ -5,14 +5,17 @@ from fastapi.testclient import TestClient
 
 from app.db.base import Base
 from app.db.session import get_db
+import os
+
 from app.main import app
 
-TEST_DATABASE_URL = "sqlite:///./test.db"
+TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", "sqlite:///./test.db")
 
 
 @pytest.fixture(scope="function")
 def engine():
-    engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
+    connect_args = {"check_same_thread": False} if TEST_DATABASE_URL.startswith("sqlite") else {}
+    engine = create_engine(TEST_DATABASE_URL, connect_args=connect_args)
     Base.metadata.create_all(bind=engine)
     yield engine
     Base.metadata.drop_all(bind=engine)
