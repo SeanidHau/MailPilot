@@ -245,7 +245,7 @@ mailpilot seed --no-ai
 - [x] Add onboarding that guides first-time users through registration, mock import, and AI provider configuration.
 - [x] Add clearer settings-state messaging when the user is not logged in and attempts to save authenticated settings.
 - [x] Add better empty states for dashboards before any email import.
-- [ ] Add responsive/mobile QA for the full authenticated flow.
+- [x] Add responsive/mobile QA for the full authenticated flow.
 
 ### Operations
 

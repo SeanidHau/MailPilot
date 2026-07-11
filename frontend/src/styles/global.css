@@ -700,6 +700,15 @@ th { font-weight: 600; font-size: 0.8125rem; color: var(--color-text-muted); tex
     padding: 1rem;
   }
 
+  /* Tables scroll horizontally */
+  .card > table,
+  .card > .table-wrap {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Dashboard */
   .dashboard-page {
     gap: 0.9rem;
   }
@@ -761,5 +770,46 @@ th { font-weight: 600; font-size: 0.8125rem; color: var(--color-text-muted); tex
   .mail-meta {
     grid-column: 2;
     align-items: flex-start;
+  }
+
+  /* Email detail */
+  .detail-actions {
+    flex-wrap: wrap;
+  }
+
+  .detail-actions button {
+    flex: 1 1 auto;
+    min-width: 44px;
+  }
+
+  /* Settings cards */
+  .card select,
+  .card input[type="text"],
+  .card input[type="password"],
+  .card textarea {
+    width: 100%;
+  }
+
+  /* Drafts */
+  .draft-card-header {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  /* Filters */
+  .email-filters {
+    flex-direction: column;
+  }
+
+  .email-filters input,
+  .email-filters select {
+    width: 100%;
+  }
+
+  /* Login / Register */
+  .auth-card {
+    width: 100%;
+    max-width: 380px;
+    margin: 0 1rem;
   }
 }
