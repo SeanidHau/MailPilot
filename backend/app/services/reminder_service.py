@@ -82,7 +82,9 @@ def extract_reminders(db: Session, email_id: int, user_id: int):
         db.add(reminder)
         created.append(reminder)
 
-    audit_service.log_action(db, user_id, "reminder_extract", "reminder", email_id, f"created {len(created)}")
+    db.flush()  # get reminder ids
+    reminder_ids = [r.id for r in created]
+    audit_service.log_action(db, user_id, "reminder_extract", "email", email_id, f"reminder ids: {reminder_ids}")
     db.commit()
     for r in created:
         db.refresh(r)

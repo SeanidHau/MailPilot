@@ -230,7 +230,7 @@ mailpilot seed --no-ai
 
 - [x] Implement optional real email sending from saved drafts, with an explicit confirmation step.
 - [x] Add draft-to-send workflow state such as `ready_to_send`, `sent`, and `send_failed`.
-- [ ] Add audit logs for user-triggered email actions and AI-generated content edits.
+- [x] Add audit logs for user-triggered email actions and AI-generated content edits.
 
 ### AI Reliability
 

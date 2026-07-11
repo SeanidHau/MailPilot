@@ -50,7 +50,8 @@ def generate_draft(db: Session, email_id: int, tone: str, user_id: int):
 
     draft = Draft(email_id=email_id, tone=tone, content=content, user_id=user_id)
     db.add(draft)
-    audit_service.log_action(db, user_id, "draft_generate", "draft", None, f"email={email_id} tone={tone}")
+    db.flush()  # get the draft.id
+    audit_service.log_action(db, user_id, "draft_generate", "draft", draft.id, f"email={email_id} tone={tone}")
     db.commit()
     db.refresh(draft)
     return draft, error

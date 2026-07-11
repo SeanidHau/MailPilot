@@ -85,6 +85,7 @@ def import_emails_from_list(db: Session, emails_data: list[dict], user_id: int) 
         except Exception as exc:
             errors.append(f"Item {i} ({msg_id}): {exc}")
 
+    audit_service.log_action(db, user_id, "email_import", "email", None, f"upload imported={imported} skipped={skipped}")
     db.commit()
     return {"imported": imported, "skipped": skipped, "errors": errors}
 
