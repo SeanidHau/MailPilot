@@ -115,7 +115,8 @@ def _outlook_list_messages(token: str, result: SyncResult) -> list[dict]:
             params={
                 "$top": MAX_EMAILS_PER_SYNC,
                 "$orderby": "receivedDateTime desc",
-                "$select": "id,from,toRecipients,subject,body,isRead,receivedDateTime",
+                "$select": "id,from,toRecipients,subject,body,isRead,receivedDateTime,hasAttachments",
+                "$expand": "attachments($select=name,contentType,size)",
             },
             timeout=20,
         )
@@ -292,13 +293,19 @@ def _extract_attachments(provider: str, raw: dict) -> str | None:
     Do NOT index or summarize attachment content in MVP."""
     items: list[dict] = []
     if provider == "gmail":
-        for part in raw.get("payload", {}).get("parts", []):
-            if part.get("filename"):
-                items.append({
-                    "filename": part["filename"],
-                    "mime_type": part.get("mimeType", "application/octet-stream"),
-                    "size_bytes": part.get("body", {}).get("size", 0),
-                })
+
+        def _walk_parts(part_list: list[dict]):
+            for part in part_list:
+                if part.get("filename"):
+                    items.append({
+                        "filename": part["filename"],
+                        "mime_type": part.get("mimeType", "application/octet-stream"),
+                        "size_bytes": part.get("body", {}).get("size", 0),
+                    })
+                if "parts" in part:
+                    _walk_parts(part["parts"])
+
+        _walk_parts(raw.get("payload", {}).get("parts", []))
     elif provider == "outlook":
         for att in (raw.get("attachments") or []):
             if isinstance(att, dict):

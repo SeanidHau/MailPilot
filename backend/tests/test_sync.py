@@ -1,3 +1,4 @@
+import json
 from unittest.mock import patch, MagicMock
 from app.services.sync_service import (
     sync_gmail_inbox, sync_outlook_inbox, SyncResult,
@@ -128,3 +129,136 @@ class TestFieldExtraction:
     def test_outlook_is_read(self):
         assert _extract_is_read("outlook", {"isRead": True}) is True
         assert _extract_is_read("outlook", {"isRead": False}) is False
+
+
+class TestAttachmentExtraction:
+    def test_gmail_flat_attachments(self):
+        from app.services.sync_service import _extract_attachments
+        raw = {
+            "payload": {
+                "parts": [
+                    {"filename": "report.pdf", "mimeType": "application/pdf", "body": {"size": 12345}},
+                    {"filename": "image.png", "mimeType": "image/png", "body": {"size": 6789}},
+                ]
+            }
+        }
+        result = _extract_attachments("gmail", raw)
+        assert result is not None
+        items = json.loads(result)
+        assert len(items) == 2
+        assert items[0]["filename"] == "report.pdf"
+        assert items[0]["mime_type"] == "application/pdf"
+        assert items[0]["size_bytes"] == 12345
+        assert items[1]["filename"] == "image.png"
+
+    def test_gmail_nested_attachments(self):
+        """Recursively walk nested parts to find attachments."""
+        from app.services.sync_service import _extract_attachments
+        raw = {
+            "payload": {
+                "parts": [
+                    {
+                        "mimeType": "multipart/alternative",
+                        "parts": [
+                            {"mimeType": "text/plain", "body": {"data": "hi"}},
+                            {
+                                "mimeType": "multipart/mixed",
+                                "parts": [
+                                    {"filename": "nested.zip", "mimeType": "application/zip", "body": {"size": 999}},
+                                ],
+                            },
+                        ],
+                    }
+                ]
+            }
+        }
+        result = _extract_attachments("gmail", raw)
+        assert result is not None
+        items = json.loads(result)
+        assert len(items) == 1
+        assert items[0]["filename"] == "nested.zip"
+
+    def test_gmail_no_attachments(self):
+        from app.services.sync_service import _extract_attachments
+        raw = {"payload": {"parts": [{"mimeType": "text/plain", "body": {"data": "hi"}}]}}
+        result = _extract_attachments("gmail", raw)
+        assert result is None
+
+    def test_outlook_attachments(self):
+        from app.services.sync_service import _extract_attachments
+        raw = {
+            "attachments": [
+                {"name": "doc.xlsx", "contentType": "application/vnd.ms-excel", "size": 2048},
+                {"name": "photo.jpg", "contentType": "image/jpeg", "size": 102400},
+            ]
+        }
+        result = _extract_attachments("outlook", raw)
+        assert result is not None
+        items = json.loads(result)
+        assert len(items) == 2
+        assert items[0]["filename"] == "doc.xlsx"
+        assert items[1]["mime_type"] == "image/jpeg"
+
+    def test_outlook_no_attachments(self):
+        from app.services.sync_service import _extract_attachments
+        result = _extract_attachments("outlook", {})
+        assert result is None
+
+    def test_upsert_stores_attachments(self, db_session):
+        """New email creation stores attachment JSON."""
+        raw = {
+            "id": "att-001",
+            "from": {"emailAddress": {"address": "a@b.com"}},
+            "toRecipients": [{"emailAddress": {"address": "c@b.com"}}],
+            "subject": "With attachment",
+            "body": {"content": "See attached", "contentType": "text"},
+            "isRead": False,
+            "receivedDateTime": "2026-07-10T10:00:00Z",
+            "attachments": [
+                {"name": "file.pdf", "contentType": "application/pdf", "size": 5000},
+            ],
+        }
+        result = SyncResult()
+        from app.services.sync_service import _upsert_email
+        _upsert_email(db_session, user_id=1, provider="outlook", raw=raw, result=result)
+        db_session.commit()
+        assert result.new == 1
+        from app.db.models import Email
+        email = db_session.query(Email).filter(Email.provider_message_id == "att-001").first()
+        assert email is not None
+        atts = json.loads(email.attachments)
+        assert len(atts) == 1
+        assert atts[0]["filename"] == "file.pdf"
+
+    def test_resync_updates_attachments(self, db_session):
+        """Re-syncing the same email updates attachment metadata."""
+        raw = {
+            "id": "att-002",
+            "from": {"emailAddress": {"address": "a@b.com"}},
+            "toRecipients": [{"emailAddress": {"address": "c@b.com"}}],
+            "subject": "Updated",
+            "body": {"content": "Body", "contentType": "text"},
+            "isRead": False,
+            "receivedDateTime": "2026-07-10T10:00:00Z",
+            "attachments": [{"name": "v1.pdf", "contentType": "application/pdf", "size": 100}],
+        }
+        result = SyncResult()
+        from app.services.sync_service import _upsert_email
+        _upsert_email(db_session, user_id=1, provider="outlook", raw=raw, result=result)
+        db_session.commit()
+        assert result.new == 1
+
+        # Resync with updated attachments
+        raw["attachments"] = [
+            {"name": "v1.pdf", "contentType": "application/pdf", "size": 100},
+            {"name": "v2.pdf", "contentType": "application/pdf", "size": 200},
+        ]
+        r2 = SyncResult()
+        _upsert_email(db_session, user_id=1, provider="outlook", raw=raw, result=r2)
+        db_session.commit()
+        assert r2.skipped == 1
+
+        from app.db.models import Email
+        email = db_session.query(Email).filter(Email.provider_message_id == "att-002").first()
+        atts = json.loads(email.attachments)
+        assert len(atts) == 2
