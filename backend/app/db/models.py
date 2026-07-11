@@ -22,7 +22,9 @@ class Email(Base):
     importance_score: Mapped[int] = mapped_column(Integer, default=1)
     summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     imported_source: Mapped[str] = mapped_column(String(64), default="mock")
-    ai_metadata: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)  # JSON: {prompt_version, provider, model, generated_at}
+    ai_metadata: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)
+    spam_confidence: Mapped[Optional[float]] = mapped_column(nullable=True, default=None)  # 0.0-1.0 spam likelihood
+    spam_signals: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)  # JSON: [signal_name, ...]
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 

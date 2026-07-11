@@ -11,6 +11,7 @@ from app.db.models import Email, ClassificationFeedback
 from app.services.ai_service import get_ai_provider
 from app.services import audit_service
 from app.ai.metadata import make_metadata
+from app.ai.spam import detect_spam
 
 MOCK_DATA_PATH = Path(__file__).parent.parent / "mock_data" / "emails.json"
 logger = logging.getLogger(__name__)
@@ -169,6 +170,14 @@ def classify_email(db: Session, email_id: int, user_id: int):
     email.category = category
     email.importance_score = score
     email.ai_metadata = make_metadata(provider.__class__.__name__, getattr(provider, 'model', 'mock'))
+
+    # Spam detection: run multi-signal analysis
+    confidence, signals = detect_spam(db, user_id, {"subject": email.subject, "body": email.body, "sender": email.sender})
+    email.spam_confidence = confidence
+    email.spam_signals = json.dumps(signals) if signals else None
+    if confidence > 0.5 and category != "important":
+        email.category = "spam"
+
     audit_service.log_action(db, user_id, "email_classify", "email", email_id, f"{category} score={score}")
     db.commit()
     db.refresh(email)
