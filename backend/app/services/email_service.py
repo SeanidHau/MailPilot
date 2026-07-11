@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json
+import logging
 from pathlib import Path
 from typing import Optional
 
@@ -10,6 +11,7 @@ from app.db.models import Email, ClassificationFeedback
 from app.services.ai_service import get_ai_provider
 
 MOCK_DATA_PATH = Path(__file__).parent.parent / "mock_data" / "emails.json"
+logger = logging.getLogger(__name__)
 
 
 def import_mock_emails(db: Session, user_id: int) -> int:
@@ -156,6 +158,8 @@ def classify_email(db: Session, email_id: int, user_id: int):
         "body": email.body,
         "sender": email.sender,
     })
+    if error:
+        logger.warning("ai_provider_failure", extra={"user_id": user_id, "email_id": email_id, "operation": "classify", "error_type": error.type})
 
     email.category = category
     email.importance_score = score
@@ -174,6 +178,8 @@ def summarize_email(db: Session, email_id: int, user_id: int):
         "subject": email.subject,
         "body": email.body,
     })
+    if error:
+        logger.warning("ai_provider_failure", extra={"user_id": user_id, "email_id": email_id, "operation": "summarize", "error_type": error.type})
 
     email.summary = summary
     db.commit()

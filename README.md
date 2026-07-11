@@ -242,8 +242,8 @@ mailpilot seed --no-ai
 
 ### Product And UX
 
-- [ ] Add onboarding that guides first-time users through registration, mock import, and AI provider configuration.
-- [ ] Add clearer settings-state messaging when the user is not logged in and attempts to save authenticated settings.
+- [x] Add onboarding that guides first-time users through registration, mock import, and AI provider configuration.
+- [x] Add clearer settings-state messaging when the user is not logged in and attempts to save authenticated settings.
 - [x] Add better empty states for dashboards before any email import.
 - [ ] Add responsive/mobile QA for the full authenticated flow.
 
@@ -252,4 +252,4 @@ mailpilot seed --no-ai
 - [x] Document production setup for stable `JWT_SECRET_KEY` and `ENCRYPTION_KEY`; rotating `ENCRYPTION_KEY` requires a re-encryption plan.
 - [x] Add CI jobs for backend tests, frontend typecheck/build, and Alembic migration verification on a fresh PostgreSQL database.
 - [x] Add seed/reset commands for local demo data.
-- [ ] Add logging/metrics for auth failures, AI provider failures, import counts, and reminder extraction counts.
+- [x] Add logging for auth failures, AI provider failures, import counts, and reminder extraction counts.

@@ -1,4 +1,5 @@
 from __future__ import annotations
+import logging
 from typing import Optional
 
 from typing import Any
@@ -13,11 +14,13 @@ from app.services import email_service, draft_service, reminder_service
 from app.api.deps import require_user
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.post("/emails/import", response_model=ImportResponse)
 def import_emails(db: Session = Depends(get_db), user=Depends(require_user)):
     count = email_service.import_mock_emails(db, user.id)
+    logger.info("email_import_count", extra={"user_id": user.id, "source": "mock", "imported": count, "skipped": 0, "errors": 0})
     return {"imported": count}
 
 
@@ -26,6 +29,16 @@ def import_emails_upload(body: Any = Body(...), db: Session = Depends(get_db), u
     if not isinstance(body, list):
         raise HTTPException(status_code=422, detail="Request body must be a JSON array of email objects")
     result = email_service.import_emails_from_list(db, body, user.id)
+    logger.info(
+        "email_import_count",
+        extra={
+            "user_id": user.id,
+            "source": "json_upload",
+            "imported": result["imported"],
+            "skipped": result["skipped"],
+            "errors": len(result["errors"]),
+        },
+    )
     return result
 
 

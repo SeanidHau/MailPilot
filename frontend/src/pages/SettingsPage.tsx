@@ -64,6 +64,11 @@ function noticeStyle(ok: boolean): React.CSSProperties {
   }
 }
 
+function isAuthError(err: Error) {
+  const message = err.message.toLowerCase()
+  return message.includes('not authenticated') || message.includes('unauthorized') || message.includes('401')
+}
+
 export function SettingsPage() {
   const queryClient = useQueryClient()
   const [importMsg, setImportMsg] = useState('')
@@ -74,7 +79,7 @@ export function SettingsPage() {
   const [outlookMsg, setOutlookMsg] = useState('')
   const [config, setConfig] = useState<AIProviderConfig>(defaultConfig)
 
-  const { data: savedConfig } = useQuery({
+  const { data: savedConfig, error: settingsError } = useQuery({
     queryKey: ['aiSettings'],
     queryFn: fetchAISettings,
   })
@@ -131,7 +136,13 @@ export function SettingsPage() {
       setSaveMsg('AI 设置已保存。')
       queryClient.invalidateQueries({ queryKey: ['aiSettings'] })
     },
-    onError: (err: Error) => setSaveMsg(`保存失败：${err.message}`),
+    onError: (err: Error) => {
+      if (isAuthError(err)) {
+        setSaveMsg('保存失败：登录状态已失效，请重新登录后再保存认证设置。')
+        return
+      }
+      setSaveMsg(`保存失败：${err.message}`)
+    },
   })
 
   const connectGmailMut = useMutation({
@@ -209,9 +220,14 @@ export function SettingsPage() {
   return (
     <div>
       <div className="page-header"><h1>设置</h1></div>
+      {settingsError && isAuthError(settingsError) && (
+        <div style={{ ...noticeStyle(false), marginBottom: '1rem' }}>
+          登录状态已失效。请重新登录后再保存 AI 设置、连接邮箱或导入邮箱数据。
+        </div>
+      )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-        <div className="card">
+        <div id="ai-provider" className="card">
           <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: 8 }}>
             <Brain size={18} /> AI 提供方
           </h2>
@@ -332,7 +348,7 @@ export function SettingsPage() {
           {outlookMsg && <div style={noticeStyle(!outlookMsg.includes('失败'))}>{outlookMsg}</div>}
         </div>
 
-        <div className="card">
+        <div id="import" className="card">
           <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: 8 }}>
             <FileJson size={18} /> JSON 上传导入
           </h2>
@@ -341,18 +357,20 @@ export function SettingsPage() {
           </p>
           <label style={labelStyle}>JSON 文件（选择后自动导入）</label>
           <input type="file" accept=".json" onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (!file) return;
-            setUploadMsg('');
-            const reader = new FileReader();
+            const file = e.target.files?.[0]
+            if (!file) return
+            setUploadMsg('')
+            const reader = new FileReader()
             reader.onload = (ev) => {
               try {
-                const emails = JSON.parse(ev.target?.result as string);
-                if (!Array.isArray(emails)) throw new Error('JSON 必须是数组');
-                uploadMut.mutate(emails);
-              } catch (err: any) { setUploadMsg(`JSON 无效：${err.message}`); }
-            };
-            reader.readAsText(file);
+                const emails = JSON.parse(ev.target?.result as string)
+                if (!Array.isArray(emails)) throw new Error('JSON 必须是数组')
+                uploadMut.mutate(emails)
+              } catch (err: any) {
+                setUploadMsg(`JSON 无效：${err.message}`)
+              }
+            }
+            reader.readAsText(file)
           }}
           style={{ ...inputStyle, border: 'none', padding: '0.375rem 0' }} />
           <label style={labelStyle}>或粘贴 JSON</label>
@@ -372,7 +390,7 @@ export function SettingsPage() {
           {uploadMsg && <div style={noticeStyle(uploadMsg.startsWith('已导入'))}>{uploadMsg}</div>}
         </div>
 
-        <div className="card">
+        <div id="mock-import" className="card">
           <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: 8 }}>
             <Upload size={18} /> 示例数据导入
           </h2>

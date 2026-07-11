@@ -1,7 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate, Link } from 'react-router-dom'
-import { fetchDashboard } from '../api/dashboard'
-import { CategoryBadge } from '../components/CategoryBadge'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   AlertCircle,
   ArrowRight,
@@ -15,6 +13,9 @@ import {
   Star,
   Upload,
 } from 'lucide-react'
+import { fetchDashboard } from '../api/dashboard'
+import { CategoryBadge } from '../components/CategoryBadge'
+import { OnboardingSteps } from '../components/OnboardingSteps'
 
 function formatDate(value: string | null) {
   if (!value) return '无截止日期'
@@ -41,8 +42,8 @@ export function DashboardPage() {
               还没有邮件数据。导入示例数据、上传 JSON 文件，或连接邮箱后，MailPilot 会开始整理分类、草稿和提醒。
             </p>
             <div className="dashboard-actions">
-              <Link to="/settings" className="dashboard-primary-action">
-                前往设置 <ArrowRight size={16} />
+              <Link to="/settings#import" className="dashboard-primary-action">
+                导入邮件 <ArrowRight size={16} />
               </Link>
               <Link to="/emails" className="dashboard-secondary-action">
                 查看邮件页
@@ -68,6 +69,8 @@ export function DashboardPage() {
             </div>
           </div>
         </section>
+
+        <OnboardingSteps />
       </div>
     )
   }

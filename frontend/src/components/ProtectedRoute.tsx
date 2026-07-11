@@ -14,7 +14,16 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return (
+      <Navigate
+        to="/login"
+        state={{
+          from: location,
+          authNotice: '请先登录后再访问设置、邮箱数据或 AI 配置。',
+        }}
+        replace
+      />
+    );
   }
 
   return <>{children}</>;
