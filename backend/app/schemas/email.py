@@ -32,6 +32,8 @@ class EmailResponse(BaseModel):
     category: str
     importance_score: int
     summary: Optional[str] = None
+    spam_confidence: Optional[float] = None
+    spam_signals: Optional[str] = None
     imported_source: str
     created_at: datetime.datetime
     updated_at: datetime.datetime

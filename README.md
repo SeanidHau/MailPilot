@@ -194,7 +194,7 @@ mailpilot seed --no-ai
 
 ## MVP Limitations
 
-- No advanced spam detection model
+- Multi-signal spam detection is implemented (keywords, links, sender reputation, etc.), but no Bayesian/ML classifier yet
 - Gmail/Outlook OAuth and inbox sync are supported with per-provider message ID dedup and read/unread state sync
 - No automatic email sending
 - User authentication exists with per-user data isolation; unauthenticated access to data APIs returns 401
