@@ -22,6 +22,7 @@ class Email(Base):
     importance_score: Mapped[int] = mapped_column(Integer, default=1)
     summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     imported_source: Mapped[str] = mapped_column(String(64), default="mock")
+    ai_metadata: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)  # JSON: {prompt_version, provider, model, generated_at}
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -53,6 +54,7 @@ class Draft(Base):
     content: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(16), default="draft")
     send_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)
+    ai_metadata: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)  # JSON: {prompt_version, provider, model, generated_at}
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -70,6 +72,7 @@ class Reminder(Base):
     due_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True)
     reminder_type: Mapped[str] = mapped_column(String(32), default="other")
     status: Mapped[str] = mapped_column(String(16), default="pending")
+    ai_metadata: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)  # JSON: {prompt_version, provider, model, generated_at}
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 

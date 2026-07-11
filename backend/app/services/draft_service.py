@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.db.models import Draft, Email
 from app.services.ai_service import get_ai_provider
 from app.services import audit_service
+from app.ai.metadata import make_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,8 @@ def generate_draft(db: Session, email_id: int, tone: str, user_id: int):
     if error:
         logger.warning("ai_provider_failure", extra={"user_id": user_id, "email_id": email_id, "operation": "generate_reply", "error_type": error.type})
 
-    draft = Draft(email_id=email_id, tone=tone, content=content, user_id=user_id)
+    draft = Draft(email_id=email_id, tone=tone, content=content, user_id=user_id,
+                   ai_metadata=make_metadata(provider.__class__.__name__, getattr(provider, 'model', 'mock')))
     db.add(draft)
     db.flush()  # get the draft.id
     audit_service.log_action(db, user_id, "draft_generate", "draft", draft.id, f"email={email_id} tone={tone}")

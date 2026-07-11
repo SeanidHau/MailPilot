@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.db.models import Reminder, Email
 from app.services.ai_service import get_ai_provider
 from app.services import audit_service
+from app.ai.metadata import make_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +72,7 @@ def extract_reminders(db: Session, email_id: int, user_id: int):
             except (ValueError, TypeError):
                 due_at = None
 
+        md = make_metadata(provider.__class__.__name__, getattr(provider, 'model', 'mock'))
         reminder = Reminder(
             email_id=email_id,
             title=item["title"],
@@ -78,6 +80,7 @@ def extract_reminders(db: Session, email_id: int, user_id: int):
             due_at=due_at,
             reminder_type=item["reminder_type"],
             user_id=user_id,
+            ai_metadata=md,
         )
         db.add(reminder)
         created.append(reminder)

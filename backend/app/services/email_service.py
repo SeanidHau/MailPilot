@@ -10,6 +10,7 @@ from sqlalchemy import or_
 from app.db.models import Email, ClassificationFeedback
 from app.services.ai_service import get_ai_provider
 from app.services import audit_service
+from app.ai.metadata import make_metadata
 
 MOCK_DATA_PATH = Path(__file__).parent.parent / "mock_data" / "emails.json"
 logger = logging.getLogger(__name__)
@@ -167,6 +168,7 @@ def classify_email(db: Session, email_id: int, user_id: int):
 
     email.category = category
     email.importance_score = score
+    email.ai_metadata = make_metadata(provider.__class__.__name__, getattr(provider, 'model', 'mock'))
     audit_service.log_action(db, user_id, "email_classify", "email", email_id, f"{category} score={score}")
     db.commit()
     db.refresh(email)
@@ -187,6 +189,7 @@ def summarize_email(db: Session, email_id: int, user_id: int):
         logger.warning("ai_provider_failure", extra={"user_id": user_id, "email_id": email_id, "operation": "summarize", "error_type": error.type})
 
     email.summary = summary
+    email.ai_metadata = make_metadata(provider.__class__.__name__, getattr(provider, 'model', 'mock'))
     audit_service.log_action(db, user_id, "email_summarize", "email", email_id, None)
     db.commit()
     db.refresh(email)
