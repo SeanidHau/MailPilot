@@ -98,22 +98,12 @@ def _reputation_signal(db: Session, user_id: int, sender: str) -> list[str]:
     if "@" in addr:
         domain = addr.split("@")[-1]
 
-    # Check emails from this sender that were classified as spam by user
-    spam_by_sender = (
-        db.query(ClassificationFeedback)
-        .filter(
-            ClassificationFeedback.user_id == user_id,
-            ClassificationFeedback.new_category == "spam",
-        )
-        .count()
-    )
-    # Check how many emails from this sender exist
     if domain:
         total_from_domain = (
             db.query(Email)
             .filter(
                 Email.user_id == user_id,
-                Email.sender.ilike(f"%@{domain}"),
+                Email.sender.ilike(f"%@{domain}%"),
             )
             .count()
         )
@@ -124,7 +114,7 @@ def _reputation_signal(db: Session, user_id: int, sender: str) -> list[str]:
                 .filter(
                     ClassificationFeedback.user_id == user_id,
                     ClassificationFeedback.new_category == "spam",
-                    Email.sender.ilike(f"%@{domain}"),
+                    Email.sender.ilike(f"%@{domain}%"),
                 )
                 .count()
             )

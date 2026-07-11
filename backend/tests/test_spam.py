@@ -1,5 +1,5 @@
 import json
-from app.ai.spam import detect_spam, _keyword_signal, _link_signals, _allcaps_signal, _exclamation_signal, _sender_signal
+from app.ai.spam import detect_spam, _keyword_signal, _link_signals, _allcaps_signal, _exclamation_signal, _sender_signal, _reputation_signal
 
 
 class TestSpamSignals:
@@ -70,6 +70,26 @@ class TestSpamDetection:
         if email.spam_signals:
             signals = json.loads(email.spam_signals)
             assert isinstance(signals, list)
+
+    def test_reputation_matches_display_name_sender(self, auth_client, db_session):
+        """Reputation should match historical emails with 'Name <addr@domain>' format."""
+        from datetime import datetime
+        from app.db.models import Email, ClassificationFeedback
+        # Import mock emails and create feedback: user marked spam from bad.com
+        auth_client.post("/api/emails/import")
+        email = db_session.query(Email).first()
+        email.sender = "Prize Team <spam@bad.com>"
+        db_session.add(ClassificationFeedback(
+            email_id=email.id, user_id=1,
+            old_category="normal", new_category="spam",
+        ))
+        db_session.commit()
+        # Detect with display-name sender from same domain
+        signals = _reputation_signal(db_session, user_id=1, sender="Other Guy <offer@BAD.com>")
+        assert any("reputation:" in s for s in signals)
+        # Detect with bare address from same domain
+        signals2 = _reputation_signal(db_session, user_id=1, sender="noreply@bad.com")
+        assert any("reputation:" in s for s in signals2)
 
     def test_spam_confidence_range(self, db_session):
         """spam_confidence always in 0-1 range."""
