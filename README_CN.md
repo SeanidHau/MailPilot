@@ -252,4 +252,4 @@ mailpilot seed --no-ai
 - [x] 补充生产环境配置文档，说明稳定 `JWT_SECRET_KEY` 和 `ENCRYPTION_KEY` 的配置方式；轮换 `ENCRYPTION_KEY` 需要再加密方案。
 - [x] 增加 CI：后端测试、前端类型检查/构建、基于全新 PostgreSQL 数据库的 Alembic 迁移验证。
 - [x] 增加本地 demo 数据 seed/reset 命令。
-- [x] 增加认证失败、AI 提供商失败、导入数量、提醒提取数量等日志和指标。
+- [x] 增加认证失败、AI 提供商失败、导入数量、提醒提取数量等日志。

@@ -19,7 +19,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
         to="/login"
         state={{
           from: location,
-          authNotice: 'Please sign in before opening settings, mailbox data, or AI configuration.',
+          authNotice: '请先登录后再访问设置、邮箱数据或 AI 配置。',
         }}
         replace
       />

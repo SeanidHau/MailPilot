@@ -252,4 +252,4 @@ mailpilot seed --no-ai
 - [x] Document production setup for stable `JWT_SECRET_KEY` and `ENCRYPTION_KEY`; rotating `ENCRYPTION_KEY` requires a re-encryption plan.
 - [x] Add CI jobs for backend tests, frontend typecheck/build, and Alembic migration verification on a fresh PostgreSQL database.
 - [x] Add seed/reset commands for local demo data.
-- [x] Add logging/metrics for auth failures, AI provider failures, import counts, and reminder extraction counts.
+- [x] Add logging for auth failures, AI provider failures, import counts, and reminder extraction counts.
