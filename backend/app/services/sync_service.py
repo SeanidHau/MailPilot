@@ -1,6 +1,7 @@
 """Mailbox sync: fetch inbox, incremental updates, dedup by provider message ID."""
 from __future__ import annotations
 
+import json
 import logging
 from datetime import datetime, timezone
 from typing import Any, Optional
@@ -145,16 +146,17 @@ def _upsert_email(db: Session, user_id: int, provider: str, raw: dict, result: S
         )
         .first()
     )
+    attachments_json = _extract_attachments(provider, raw)
+
     if existing:
-        # Sync read status and skip
         new_read = _extract_is_read(provider, raw)
-        if existing.is_read != new_read:
+        if existing.is_read != new_read or existing.attachments != attachments_json:
             existing.is_read = new_read
+            existing.attachments = attachments_json
             db.add(existing)
         result.skipped += 1
         return
 
-    # Create new email
     email = Email(
         message_id=f"{provider}:{provider_msg_id}",
         provider=provider,
@@ -167,6 +169,7 @@ def _upsert_email(db: Session, user_id: int, provider: str, raw: dict, result: S
         is_read=_extract_is_read(provider, raw),
         imported_source=provider,
         user_id=user_id,
+        attachments=attachments_json,
     )
     db.add(email)
     result.new += 1
@@ -281,3 +284,27 @@ def _extract_is_read(provider: str, raw: dict) -> bool:
     if provider == "outlook":
         return raw.get("isRead", False)
     return False
+
+
+def _extract_attachments(provider: str, raw: dict) -> str | None:
+    """Extract attachment metadata as a JSON string or None.
+    Decision: store metadata (filename, mime_type, size_bytes) only.
+    Do NOT index or summarize attachment content in MVP."""
+    items: list[dict] = []
+    if provider == "gmail":
+        for part in raw.get("payload", {}).get("parts", []):
+            if part.get("filename"):
+                items.append({
+                    "filename": part["filename"],
+                    "mime_type": part.get("mimeType", "application/octet-stream"),
+                    "size_bytes": part.get("body", {}).get("size", 0),
+                })
+    elif provider == "outlook":
+        for att in (raw.get("attachments") or []):
+            if isinstance(att, dict):
+                items.append({
+                    "filename": att.get("name", "unnamed"),
+                    "mime_type": att.get("contentType", "application/octet-stream"),
+                    "size_bytes": att.get("size", 0),
+                })
+    return json.dumps(items) if items else None

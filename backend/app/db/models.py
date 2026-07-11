@@ -28,6 +28,7 @@ class Email(Base):
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True, default=None, index=True)
     provider: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, default=None)  # gmail, outlook, mock
     provider_message_id: Mapped[Optional[str]] = mapped_column(String(512), nullable=True, default=None)  # provider-specific ID for dedup
+    attachments: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)  # JSON array: [{filename, mime_type, size_bytes}]
 
     drafts: Mapped[list["Draft"]] = relationship(back_populates="email", cascade="all, delete-orphan")
     reminders: Mapped[list["Reminder"]] = relationship(back_populates="email", cascade="all, delete-orphan")

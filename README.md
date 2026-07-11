@@ -224,7 +224,7 @@ mailpilot seed --no-ai
 - [x] Implement Outlook/Microsoft Graph OAuth authorization and token refresh.
 - [x] Add mailbox sync jobs for inbox fetch, incremental updates, read/unread state, and deduplication by provider message ID.
 - [x] Add manual JSON upload/import UI instead of only importing the bundled backend mock file.
-- [ ] Add attachment metadata support and decide whether attachment content should be indexed or summarized.
+- [x] Add attachment metadata support and decide whether attachment content should be indexed or summarized.
 
 ### Email Actions
 
