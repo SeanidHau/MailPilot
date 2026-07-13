@@ -37,6 +37,30 @@ class OpenAIProvider(AIProvider):
             max_retries=0,
         )
 
+    def process_email(self, email: dict, include_reminders: bool = True) -> tuple[dict, Optional[AIError]]:
+        try:
+            response = retry.with_retry(
+                lambda: self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[{"role": "user", "content": prompts.build_process_prompt(email, include_reminders)}],
+                    temperature=0.2,
+                    max_tokens=700,
+                ),
+                "OpenAI process_email",
+            )
+            data = parsing.parse_process_response(response.choices[0].message.content or "")
+            if not include_reminders:
+                data["reminders"] = []
+            return data, None
+        except Exception as exc:
+            logger.error("OpenAI process_email failed: %s", exc)
+            return {
+                "category": "normal",
+                "importance_score": 1,
+                "summary": "暂时无法生成摘要，请稍后重试。",
+                "reminders": [],
+            }, _classify_error(exc)
+
     def classify_email(self, email: dict) -> tuple[str, int, Optional[AIError]]:
         try:
             response = retry.with_retry(
@@ -69,7 +93,7 @@ class OpenAIProvider(AIProvider):
             return (response.choices[0].message.content or "").strip()[:500], None
         except Exception as exc:
             logger.error("OpenAI summarize failed: %s", exc)
-            return "Unable to summarize email due to an error.", _classify_error(exc)
+            return "暂时无法生成摘要，请稍后重试。", _classify_error(exc)
 
     def generate_reply(self, email: dict, tone: str) -> tuple[str, Optional[AIError]]:
         try:

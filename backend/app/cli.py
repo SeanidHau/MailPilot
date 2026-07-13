@@ -113,7 +113,7 @@ def _seed_demo_data(
     user = _get_or_create_demo_user(db, email, password)
     assert user.id is not None
 
-    imported = import_mock_emails(db, user.id)
+    imported = import_mock_emails(db, user.id, auto_process=not no_ai)
     emails = db.query(Email).filter(Email.user_id == user.id).all()
 
     classified = 0

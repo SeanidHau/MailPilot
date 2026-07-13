@@ -1,7 +1,7 @@
 from __future__ import annotations
 import datetime
 from typing import Optional
-from sqlalchemy import String, Integer, Text, DateTime, ForeignKey, Index, func, text
+from sqlalchemy import String, Integer, Text, DateTime, Boolean, ForeignKey, Index, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -18,6 +18,7 @@ class Email(Base):
     body: Mapped[str] = mapped_column(Text)
     received_at: Mapped[datetime.datetime] = mapped_column(DateTime)
     is_read: Mapped[bool] = mapped_column(default=False)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"), index=True)
     category: Mapped[str] = mapped_column(String(32), default="normal")
     importance_score: Mapped[int] = mapped_column(Integer, default=1)
     summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -32,6 +33,11 @@ class Email(Base):
     provider: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, default=None)  # gmail, outlook, mock
     provider_message_id: Mapped[Optional[str]] = mapped_column(String(512), nullable=True, default=None)  # provider-specific ID for dedup
     attachments: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)  # JSON array: [{filename, mime_type, size_bytes}]
+
+    @property
+    def ai_processed(self) -> bool:
+        """Whether the email has both the current AI metadata and a summary."""
+        return bool(self.ai_metadata and self.summary)
 
     drafts: Mapped[list["Draft"]] = relationship(back_populates="email", cascade="all, delete-orphan")
     reminders: Mapped[list["Reminder"]] = relationship(back_populates="email", cascade="all, delete-orphan")
@@ -50,10 +56,12 @@ class Draft(Base):
     __tablename__ = "drafts"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    email_id: Mapped[int] = mapped_column(ForeignKey("emails.id"))
+    email_id: Mapped[Optional[int]] = mapped_column(ForeignKey("emails.id"), nullable=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True, default=None, index=True)
     tone: Mapped[str] = mapped_column(String(32))
     content: Mapped[str] = mapped_column(Text)
+    recipient: Mapped[Optional[str]] = mapped_column(String(512), nullable=True, default=None)
+    subject: Mapped[Optional[str]] = mapped_column(String(512), nullable=True, default=None)
     status: Mapped[str] = mapped_column(String(16), default="draft")
     send_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)
     ai_metadata: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)  # JSON: {prompt_version, provider, model, generated_at}
@@ -152,3 +160,17 @@ class AuditLog(Base):
     target_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     detail: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # extra info like tone, category change
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now(), index=True)
+
+
+class BackgroundJob(Base):
+    __tablename__ = "background_jobs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    job_type: Mapped[str] = mapped_column(String(32))
+    status: Mapped[str] = mapped_column(String(16), default="queued", index=True)
+    result: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, server_default=func.now())
+    started_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True)
+    finished_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True)

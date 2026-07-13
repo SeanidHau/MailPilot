@@ -6,7 +6,7 @@ from app.db.models import Email, Reminder
 
 
 def get_dashboard_summary(db: Session, user_id: int):
-    email_q = db.query(Email).filter(Email.user_id == user_id)
+    email_q = db.query(Email).filter(Email.user_id == user_id, Email.is_deleted.is_(False))
     reminder_q = db.query(Reminder).filter(Reminder.user_id == user_id)
 
     total_emails = email_q.count()

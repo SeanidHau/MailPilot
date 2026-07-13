@@ -43,7 +43,9 @@ def test_build_authorization_url_includes_graph_scopes_and_signed_state(monkeypa
     assert params["response_mode"] == ["query"]
     assert "offline_access" in params["scope"][0]
     assert "Mail.Read" in params["scope"][0]
-    assert outlook_service.parse_oauth_state(params["state"][0], nonce) == 123
+    parsed_state = outlook_service.parse_oauth_state(params["state"][0], nonce)
+    assert parsed_state.user_id == 123
+    assert parsed_state.redirect_uri == "http://testserver/api/outlook/oauth/callback"
 
 
 def test_authorize_sets_http_only_nonce_cookie(auth_client, monkeypatch):
@@ -55,7 +57,44 @@ def test_authorize_sets_http_only_nonce_cookie(auth_client, monkeypatch):
     assert resp.status_code == 200
     assert outlook_service.OAUTH_STATE_COOKIE in resp.cookies
     assert "httponly" in resp.headers["set-cookie"].lower()
-    assert outlook_service.parse_oauth_state(params["state"][0], resp.cookies[outlook_service.OAUTH_STATE_COOKIE])
+    parsed_state = outlook_service.parse_oauth_state(params["state"][0], resp.cookies[outlook_service.OAUTH_STATE_COOKIE])
+    assert parsed_state.user_id == 1
+    assert parsed_state.redirect_uri == "http://testserver/api/outlook/oauth/callback"
+
+
+def test_authorize_uses_request_host_when_redirect_uri_not_configured(auth_client, monkeypatch):
+    monkeypatch.setattr(settings, "outlook_client_id", "outlook-client-id")
+    monkeypatch.setattr(settings, "outlook_client_secret", "outlook-client-secret")
+    monkeypatch.setattr(settings, "outlook_redirect_uri", "")
+
+    resp = auth_client.get("/api/outlook/authorize")
+    params = parse_qs(urlparse(resp.json()["authorization_url"]).query)
+    parsed_state = outlook_service.parse_oauth_state(params["state"][0], resp.cookies[outlook_service.OAUTH_STATE_COOKIE])
+
+    assert resp.status_code == 200
+    assert params["redirect_uri"] == ["http://testserver/api/outlook/oauth/callback"]
+    assert parsed_state.redirect_uri == "http://testserver/api/outlook/oauth/callback"
+
+
+def test_authorize_honors_forwarded_host_when_redirect_uri_not_configured(auth_client, monkeypatch):
+    monkeypatch.setattr(settings, "outlook_client_id", "outlook-client-id")
+    monkeypatch.setattr(settings, "outlook_client_secret", "outlook-client-secret")
+    monkeypatch.setattr(settings, "outlook_redirect_uri", "")
+
+    resp = auth_client.get(
+        "/api/outlook/authorize",
+        headers={
+            "x-forwarded-proto": "https",
+            "x-forwarded-host": "mailpilot.example.com",
+        },
+    )
+    params = parse_qs(urlparse(resp.json()["authorization_url"]).query)
+    parsed_state = outlook_service.parse_oauth_state(params["state"][0], resp.cookies[outlook_service.OAUTH_STATE_COOKIE])
+
+    assert resp.status_code == 200
+    assert params["redirect_uri"] == ["https://mailpilot.example.com/api/outlook/oauth/callback"]
+    assert parsed_state.redirect_uri == "https://mailpilot.example.com/api/outlook/oauth/callback"
+    assert "secure" in resp.headers["set-cookie"].lower()
 
 
 def test_authorize_requires_oauth_config(auth_client, monkeypatch):
@@ -68,15 +107,35 @@ def test_authorize_requires_oauth_config(auth_client, monkeypatch):
     assert resp.json()["detail"] == "Outlook OAuth is not configured"
 
 
+def test_status_reports_oauth_configuration(auth_client, monkeypatch):
+    monkeypatch.setattr(settings, "outlook_client_id", "")
+    monkeypatch.setattr(settings, "outlook_client_secret", "")
+    resp = auth_client.get("/api/outlook/status")
+
+    assert resp.status_code == 200
+    assert resp.json()["connected"] is False
+    assert resp.json()["configured"] is False
+
+    setup_outlook_config(monkeypatch)
+    resp = auth_client.get("/api/outlook/status")
+
+    assert resp.status_code == 200
+    assert resp.json()["connected"] is False
+    assert resp.json()["configured"] is True
+
+
 def test_exchange_code_encrypts_tokens_and_stores_account(db_session, monkeypatch):
     setup_outlook_config(monkeypatch)
     nonce = outlook_service.create_oauth_nonce()
-    state = outlook_service.create_oauth_state(user_id=7, nonce=nonce)
+    redirect_uri = "http://testserver/api/outlook/oauth/callback"
+    state = outlook_service.create_oauth_state(user_id=7, nonce=nonce, redirect_uri=redirect_uri)
 
-    def fake_post(url, data, timeout):
+    def fake_post(url, data, timeout, **kwargs):
+        assert kwargs["trust_env"] is True
         assert url == outlook_service.MS_TOKEN_URL
         assert data["grant_type"] == "authorization_code"
         assert data["code"] == "auth-code"
+        assert data["redirect_uri"] == redirect_uri
         return FakeResponse(
             {
                 "access_token": "access-token",
@@ -87,7 +146,8 @@ def test_exchange_code_encrypts_tokens_and_stores_account(db_session, monkeypatc
             }
         )
 
-    def fake_get(url, headers, timeout):
+    def fake_get(url, headers, timeout, **kwargs):
+        assert kwargs["trust_env"] is True
         assert url == outlook_service.MS_USERINFO_URL
         assert headers["Authorization"] == "Bearer access-token"
         return FakeResponse({"mail": "user@outlook.com"})
@@ -162,7 +222,8 @@ def test_refresh_access_token_reuses_stored_refresh_token(db_session, monkeypatc
     )
     db_session.commit()
 
-    def fake_post(url, data, timeout):
+    def fake_post(url, data, timeout, **kwargs):
+        assert kwargs["trust_env"] is True
         assert url == outlook_service.MS_TOKEN_URL
         assert data["grant_type"] == "refresh_token"
         assert data["refresh_token"] == "stable-refresh-token"

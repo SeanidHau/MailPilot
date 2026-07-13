@@ -8,6 +8,9 @@ import type {
   GenerateDraftResponse,
   ExtractRemindersResponse,
 } from '../types/email';
+import type { JobAcceptedResponse } from '../types/job';
+
+export type BulkEmailAction = 'mark_read' | 'delete';
 
 export interface EmailQueryParams {
   q?: string;
@@ -15,6 +18,8 @@ export interface EmailQueryParams {
   is_read?: boolean;
   min_importance?: number;
   max_importance?: number;
+  sort_by?: 'received_at' | 'importance';
+  sort_order?: 'asc' | 'desc';
   page?: number;
   page_size?: number;
 }
@@ -25,13 +30,18 @@ export interface EmailPatchBody {
   importance_score?: number;
 }
 
-export async function importEmails(): Promise<{ imported: number; skipped: number; errors: string[] }> {
+export async function importEmails(): Promise<JobAcceptedResponse> {
   const { data } = await api.post('/emails/import');
   return data;
 }
 
-export async function uploadEmails(emails: Record<string, any>[]): Promise<{ imported: number; skipped: number; errors: string[] }> {
+export async function uploadEmails(emails: Record<string, any>[]): Promise<JobAcceptedResponse> {
   const { data } = await api.post('/emails/import/upload', emails);
+  return data;
+}
+
+export async function processUnprocessedEmails(): Promise<JobAcceptedResponse> {
+  const { data } = await api.post('/emails/process-ai');
   return data;
 }
 
@@ -47,6 +57,16 @@ export async function fetchEmail(id: number): Promise<EmailDetailResponse> {
 
 export async function patchEmail(id: number, body: EmailPatchBody): Promise<EmailResponse> {
   const { data } = await api.patch(`/emails/${id}`, body);
+  return data;
+}
+
+export async function bulkUpdateEmails(emailIds: number[], action: BulkEmailAction): Promise<{
+  action: BulkEmailAction;
+  requested: number;
+  updated: number;
+  not_found: number;
+}> {
+  const { data } = await api.post('/emails/bulk', { email_ids: emailIds, action });
   return data;
 }
 

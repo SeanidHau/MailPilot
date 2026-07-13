@@ -43,18 +43,23 @@ def test_build_authorization_url_includes_offline_access_and_signed_state(monkey
     assert params["access_type"] == ["offline"]
     assert params["prompt"] == ["consent"]
     assert "https://www.googleapis.com/auth/gmail.readonly" in params["scope"][0]
-    assert gmail_service.parse_oauth_state(params["state"][0], nonce) == 123
+    parsed_state = gmail_service.parse_oauth_state(params["state"][0], nonce)
+    assert parsed_state.user_id == 123
+    assert parsed_state.redirect_uri == "http://testserver/api/gmail/oauth/callback"
 
 
 def test_exchange_code_encrypts_tokens_and_stores_account(db_session, monkeypatch):
     setup_gmail_config(monkeypatch)
     nonce = gmail_service.create_oauth_nonce()
-    state = gmail_service.create_oauth_state(user_id=7, nonce=nonce)
+    redirect_uri = "http://testserver/api/gmail/oauth/callback"
+    state = gmail_service.create_oauth_state(user_id=7, nonce=nonce, redirect_uri=redirect_uri)
 
-    def fake_post(url, data, timeout):
+    def fake_post(url, data, timeout, **kwargs):
+        assert kwargs["trust_env"] is True
         assert url == gmail_service.GOOGLE_TOKEN_URL
         assert data["grant_type"] == "authorization_code"
         assert data["code"] == "auth-code"
+        assert data["redirect_uri"] == redirect_uri
         return FakeResponse(
             {
                 "access_token": "access-token",
@@ -65,7 +70,8 @@ def test_exchange_code_encrypts_tokens_and_stores_account(db_session, monkeypatc
             }
         )
 
-    def fake_get(url, headers, timeout):
+    def fake_get(url, headers, timeout, **kwargs):
+        assert kwargs["trust_env"] is True
         assert headers["Authorization"] == "Bearer access-token"
         return FakeResponse({"email": "user@gmail.com"})
 
@@ -106,7 +112,61 @@ def test_authorize_sets_http_only_nonce_cookie(auth_client, monkeypatch):
     assert resp.status_code == 200
     assert gmail_service.OAUTH_STATE_COOKIE in resp.cookies
     assert "httponly" in resp.headers["set-cookie"].lower()
-    assert gmail_service.parse_oauth_state(params["state"][0], resp.cookies[gmail_service.OAUTH_STATE_COOKIE])
+    parsed_state = gmail_service.parse_oauth_state(params["state"][0], resp.cookies[gmail_service.OAUTH_STATE_COOKIE])
+    assert parsed_state.user_id == 1
+    assert parsed_state.redirect_uri == "http://testserver/api/gmail/oauth/callback"
+
+
+def test_authorize_uses_request_host_when_redirect_uri_not_configured(auth_client, monkeypatch):
+    monkeypatch.setattr(settings, "gmail_client_id", "gmail-client-id")
+    monkeypatch.setattr(settings, "gmail_client_secret", "gmail-client-secret")
+    monkeypatch.setattr(settings, "gmail_redirect_uri", "")
+
+    resp = auth_client.get("/api/gmail/authorize")
+    params = parse_qs(urlparse(resp.json()["authorization_url"]).query)
+    parsed_state = gmail_service.parse_oauth_state(params["state"][0], resp.cookies[gmail_service.OAUTH_STATE_COOKIE])
+
+    assert resp.status_code == 200
+    assert params["redirect_uri"] == ["http://testserver/api/gmail/oauth/callback"]
+    assert parsed_state.redirect_uri == "http://testserver/api/gmail/oauth/callback"
+
+
+def test_authorize_honors_forwarded_host_when_redirect_uri_not_configured(auth_client, monkeypatch):
+    monkeypatch.setattr(settings, "gmail_client_id", "gmail-client-id")
+    monkeypatch.setattr(settings, "gmail_client_secret", "gmail-client-secret")
+    monkeypatch.setattr(settings, "gmail_redirect_uri", "")
+
+    resp = auth_client.get(
+        "/api/gmail/authorize",
+        headers={
+            "x-forwarded-proto": "https",
+            "x-forwarded-host": "mailpilot.example.com",
+        },
+    )
+    params = parse_qs(urlparse(resp.json()["authorization_url"]).query)
+    parsed_state = gmail_service.parse_oauth_state(params["state"][0], resp.cookies[gmail_service.OAUTH_STATE_COOKIE])
+
+    assert resp.status_code == 200
+    assert params["redirect_uri"] == ["https://mailpilot.example.com/api/gmail/oauth/callback"]
+    assert parsed_state.redirect_uri == "https://mailpilot.example.com/api/gmail/oauth/callback"
+    assert "secure" in resp.headers["set-cookie"].lower()
+
+
+def test_status_reports_oauth_configuration(auth_client, monkeypatch):
+    monkeypatch.setattr(settings, "gmail_client_id", "")
+    monkeypatch.setattr(settings, "gmail_client_secret", "")
+    resp = auth_client.get("/api/gmail/status")
+
+    assert resp.status_code == 200
+    assert resp.json()["connected"] is False
+    assert resp.json()["configured"] is False
+
+    setup_gmail_config(monkeypatch)
+    resp = auth_client.get("/api/gmail/status")
+
+    assert resp.status_code == 200
+    assert resp.json()["connected"] is False
+    assert resp.json()["configured"] is True
 
 
 def test_callback_redirects_to_failure_when_google_denies_access(auth_client, monkeypatch):
@@ -136,7 +196,8 @@ def test_refresh_access_token_reuses_stored_refresh_token(db_session, monkeypatc
     )
     db_session.commit()
 
-    def fake_post(url, data, timeout):
+    def fake_post(url, data, timeout, **kwargs):
+        assert kwargs["trust_env"] is True
         assert data["grant_type"] == "refresh_token"
         assert data["refresh_token"] == "stable-refresh-token"
         return FakeResponse(

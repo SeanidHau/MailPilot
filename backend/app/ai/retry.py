@@ -19,16 +19,17 @@ class RateLimiter:
     def __init__(self, calls_per_minute: int):
         self.min_interval = 60.0 / max(calls_per_minute, 1)
         self._lock = threading.Lock()
-        self._last_call = 0.0
+        self._next_call = 0.0
 
     def acquire(self):
         with self._lock:
             now = time.monotonic()
-            wait = self._last_call + self.min_interval - now
-            if wait > 0:
-                logger.debug("Rate limiter: waiting %.1fs", wait)
-                time.sleep(wait)
-            self._last_call = time.monotonic()
+            wait = max(0.0, self._next_call - now)
+            self._next_call = max(now, self._next_call) + self.min_interval
+        # Reserve the slot under the lock, but do not hold the lock while sleeping.
+        if wait > 0:
+            logger.debug("Rate limiter: waiting %.1fs", wait)
+            time.sleep(wait)
 
 
 _rate_limiter = RateLimiter(settings.ai_rate_limit_per_minute)
@@ -40,10 +41,6 @@ RETRYABLE_STATUSES = {429, 500, 502, 503, 504}
 
 def is_retryable(exc: Exception) -> bool:
     """Check if an exception is transient and worth retrying."""
-    # OpenAI SDK errors have status_code attribute
-    if hasattr(exc, "status_code"):
-        return getattr(exc, "status_code") in RETRYABLE_STATUSES
-    # Anthropic SDK errors
     if hasattr(exc, "status_code"):
         return getattr(exc, "status_code") in RETRYABLE_STATUSES
     # Check for common transient error messages

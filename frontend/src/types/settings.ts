@@ -10,8 +10,14 @@ export interface AIProviderConfig {
   anthropic_model: string;
 }
 
+export interface AISettingsUpdateResponse extends AIProviderConfig {
+  job_id: number;
+  job_status: string;
+}
+
 export interface GmailStatus {
   connected: boolean;
+  configured: boolean;
   email?: string | null;
   scopes?: string | null;
   expires_at?: string | null;
@@ -23,6 +29,7 @@ export interface GmailAuthorizeResponse {
 
 export interface OutlookStatus {
   connected: boolean;
+  configured: boolean;
   email?: string | null;
   scopes?: string | null;
   expires_at?: string | null;

@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     # Gmail OAuth
     gmail_client_id: str = ""
     gmail_client_secret: str = ""
-    gmail_redirect_uri: str = "http://localhost:8000/api/gmail/oauth/callback"
+    gmail_redirect_uri: str = ""
     gmail_scopes: str = "openid email https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send"
     gmail_oauth_success_url: str = "http://localhost:5173/settings?gmail=connected"
     gmail_oauth_failure_url: str = "http://localhost:5173/settings?gmail=error"
@@ -33,14 +33,14 @@ class Settings(BaseSettings):
     # Outlook / Microsoft Graph OAuth
     outlook_client_id: str = ""
     outlook_client_secret: str = ""
-    outlook_redirect_uri: str = "http://localhost:8000/api/outlook/oauth/callback"
+    outlook_redirect_uri: str = ""
     outlook_scopes: str = "offline_access User.Read Mail.Read Mail.Send"
     outlook_oauth_success_url: str = "http://localhost:5173/settings?outlook=connected"
     outlook_oauth_failure_url: str = "http://localhost:5173/settings?outlook=error"
 
     # AI call reliability
-    ai_request_timeout: float = 60.0
-    ai_max_retries: int = 2
+    ai_request_timeout: float = 30.0
+    ai_max_retries: int = 1
     ai_rate_limit_per_minute: int = 30
 
     model_config = {"env_file": ".env"}

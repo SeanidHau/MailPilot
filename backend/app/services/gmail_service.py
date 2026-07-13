@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import secrets
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from urllib.parse import urlencode
@@ -29,9 +30,19 @@ class GmailOAuthError(Exception):
     pass
 
 
+@dataclass(frozen=True)
+class GmailOAuthState:
+    user_id: int
+    redirect_uri: str
+
+
 def _require_oauth_config() -> None:
     if not settings.gmail_client_id or not settings.gmail_client_secret:
         raise GmailOAuthError("Gmail OAuth is not configured")
+
+
+def is_oauth_configured() -> bool:
+    return bool(settings.gmail_client_id and settings.gmail_client_secret)
 
 
 def _utcnow() -> datetime:
@@ -56,32 +67,45 @@ def create_oauth_nonce() -> str:
     return secrets.token_urlsafe(32)
 
 
-def create_oauth_state(user_id: int, nonce: str) -> str:
+def _fallback_redirect_uri() -> str:
+    return settings.gmail_redirect_uri or "http://localhost:8000/api/gmail/oauth/callback"
+
+
+def create_oauth_state(user_id: int, nonce: str, redirect_uri: str | None = None) -> str:
     expire = _utcnow() + timedelta(minutes=STATE_EXPIRE_MINUTES)
-    payload = {"sub": str(user_id), "nonce": nonce, "exp": expire}
+    payload = {
+        "sub": str(user_id),
+        "nonce": nonce,
+        "redirect_uri": redirect_uri or _fallback_redirect_uri(),
+        "exp": expire,
+    }
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def parse_oauth_state(state: str, expected_nonce: str) -> int:
+def parse_oauth_state(state: str, expected_nonce: str) -> GmailOAuthState:
     try:
         payload = jwt.decode(state, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = payload.get("sub")
         nonce = payload.get("nonce")
         if not user_id or not nonce or nonce != expected_nonce:
             raise GmailOAuthError("Invalid OAuth state")
-        return int(user_id)
+        redirect_uri = payload.get("redirect_uri") or _fallback_redirect_uri()
+        if not isinstance(redirect_uri, str):
+            raise GmailOAuthError("Invalid OAuth state")
+        return GmailOAuthState(user_id=int(user_id), redirect_uri=redirect_uri)
     except (JWTError, ValueError) as exc:
         raise GmailOAuthError("Invalid OAuth state") from exc
 
 
-def build_authorization_url(user_id: int, nonce: str) -> str:
+def build_authorization_url(user_id: int, nonce: str, redirect_uri: str | None = None) -> str:
     _require_oauth_config()
+    redirect_uri = redirect_uri or _fallback_redirect_uri()
     params = {
         "client_id": settings.gmail_client_id,
-        "redirect_uri": settings.gmail_redirect_uri,
+        "redirect_uri": redirect_uri,
         "response_type": "code",
         "scope": settings.gmail_scopes,
-        "state": create_oauth_state(user_id, nonce),
+        "state": create_oauth_state(user_id, nonce, redirect_uri),
         "access_type": "offline",
         "prompt": "consent",
         "include_granted_scopes": "true",
@@ -91,10 +115,10 @@ def build_authorization_url(user_id: int, nonce: str) -> str:
 
 def _post_token_request(data: dict[str, str]) -> dict[str, Any]:
     try:
-        response = httpx.post(GOOGLE_TOKEN_URL, data=data, timeout=15)
+        response = httpx.post(GOOGLE_TOKEN_URL, data=data, timeout=15, trust_env=True)
         response.raise_for_status()
         return response.json()
-    except httpx.HTTPError as exc:
+    except (httpx.HTTPError, ImportError) as exc:
         logger.warning("Gmail OAuth token request failed: %s", exc)
         raise GmailOAuthError("Gmail OAuth token request failed") from exc
 
@@ -105,11 +129,12 @@ def _fetch_google_email(access_token: str) -> str | None:
             GOOGLE_USERINFO_URL,
             headers={"Authorization": f"Bearer {access_token}"},
             timeout=15,
+            trust_env=True,
         )
         response.raise_for_status()
         email = response.json().get("email")
         return email if isinstance(email, str) else None
-    except httpx.HTTPError:
+    except (httpx.HTTPError, ImportError):
         logger.warning("Failed to fetch Gmail account email after OAuth callback.")
         return None
 
@@ -154,17 +179,17 @@ def save_token_response(db: Session, user_id: int, token_data: dict[str, Any]) -
 
 def exchange_code_for_tokens(db: Session, code: str, state: str, expected_nonce: str) -> GmailAccount:
     _require_oauth_config()
-    user_id = parse_oauth_state(state, expected_nonce)
+    oauth_state = parse_oauth_state(state, expected_nonce)
     token_data = _post_token_request(
         {
             "client_id": settings.gmail_client_id,
             "client_secret": settings.gmail_client_secret,
             "code": code,
             "grant_type": "authorization_code",
-            "redirect_uri": settings.gmail_redirect_uri,
+            "redirect_uri": oauth_state.redirect_uri,
         }
     )
-    return save_token_response(db, user_id, token_data)
+    return save_token_response(db, oauth_state.user_id, token_data)
 
 
 def get_gmail_account(db: Session, user_id: int) -> GmailAccount | None:
@@ -174,9 +199,10 @@ def get_gmail_account(db: Session, user_id: int) -> GmailAccount | None:
 def get_gmail_status(db: Session, user_id: int) -> dict[str, Any]:
     row = get_gmail_account(db, user_id)
     if row is None:
-        return {"connected": False}
+        return {"connected": False, "configured": is_oauth_configured()}
     return {
         "connected": True,
+        "configured": is_oauth_configured(),
         "email": row.email,
         "scopes": row.scopes,
         "expires_at": row.expires_at,

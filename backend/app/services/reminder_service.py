@@ -48,6 +48,44 @@ def delete_reminder(db: Session, reminder_id: int, user_id: int):
     return reminder
 
 
+def bulk_update_reminders(db: Session, reminder_ids: list[int], action: str, user_id: int) -> dict:
+    unique_ids = list(dict.fromkeys(reminder_ids))
+    reminders = (
+        db.query(Reminder)
+        .filter(
+            Reminder.id.in_(unique_ids),
+            Reminder.user_id == user_id,
+            Reminder.status != "deleted",
+        )
+        .all()
+    )
+
+    updated = 0
+    for reminder in reminders:
+        if action == "complete" and reminder.status == "pending":
+            reminder.status = "done"
+            updated += 1
+        elif action == "delete":
+            reminder.status = "deleted"
+            updated += 1
+
+    audit_service.log_action(
+        db,
+        user_id,
+        f"reminder_bulk_{action}",
+        "reminder",
+        None,
+        f"requested={len(unique_ids)} updated={updated}",
+    )
+    db.commit()
+    return {
+        "action": action,
+        "requested": len(unique_ids),
+        "updated": updated,
+        "not_found": len(unique_ids) - len(reminders),
+    }
+
+
 def extract_reminders(db: Session, email_id: int, user_id: int):
     email = db.query(Email).filter(Email.id == email_id, Email.user_id == user_id).first()
     if not email:
@@ -61,10 +99,35 @@ def extract_reminders(db: Session, email_id: int, user_id: int):
     if error:
         logger.warning("ai_provider_failure", extra={"user_id": user_id, "email_id": email_id, "operation": "extract_reminders", "error_type": error.type})
 
+    created = create_reminders_from_items(db, email_id, user_id, items, provider)
+    return created, error
+
+
+def create_reminders_from_items(
+    db: Session,
+    email_id: int,
+    user_id: int,
+    items: list[dict],
+    provider,
+    deduplicate: bool = False,
+):
+    """Persist reminders returned by a combined AI processing request."""
     from datetime import datetime as dt
 
+    existing = set()
+    if deduplicate:
+        existing = {
+            (r.title, r.reminder_type, r.due_at)
+            for r in db.query(Reminder).filter(
+                Reminder.email_id == email_id,
+                Reminder.user_id == user_id,
+                Reminder.status != "deleted",
+            ).all()
+        }
     created = []
     for item in items:
+        if not isinstance(item, dict) or not item.get("title"):
+            continue
         due_at = item.get("due_at")
         if isinstance(due_at, str):
             try:
@@ -72,13 +135,18 @@ def extract_reminders(db: Session, email_id: int, user_id: int):
             except (ValueError, TypeError):
                 due_at = None
 
+        reminder_type = str(item.get("reminder_type", "other"))
+        key = (str(item["title"])[:256], reminder_type, due_at)
+        if key in existing:
+            continue
+        existing.add(key)
         md = make_metadata(provider.__class__.__name__, getattr(provider, 'model', 'mock'))
         reminder = Reminder(
             email_id=email_id,
-            title=item["title"],
+            title=key[0],
             description=item.get("description"),
             due_at=due_at,
-            reminder_type=item["reminder_type"],
+            reminder_type=reminder_type,
             user_id=user_id,
             ai_metadata=md,
         )
@@ -93,6 +161,6 @@ def extract_reminders(db: Session, email_id: int, user_id: int):
         db.refresh(r)
     logger.info(
         "reminder_extraction_count",
-        extra={"user_id": user_id, "email_id": email_id, "created": len(created), "provider_error": bool(error)},
+        extra={"user_id": user_id, "email_id": email_id, "created": len(created)},
     )
-    return created, error
+    return created

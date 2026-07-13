@@ -4,9 +4,24 @@ from typing import Optional
 
 from app.ai.providers.base import AIProvider
 from app.schemas.ai import AIError
+from app.ai.rules import should_extract_reminders
 
 
 class MockAIProvider(AIProvider):
+    def process_email(self, email: dict, include_reminders: bool = True) -> tuple[dict, Optional[AIError]]:
+        category, score, error = self.classify_email(email)
+        summary, summary_error = self.summarize_email(email)
+        reminders: list[dict] = []
+        reminder_error: Optional[AIError] = None
+        if include_reminders and should_extract_reminders(email, category):
+            reminders, reminder_error = self.extract_reminders(email)
+        return {
+            "category": category,
+            "importance_score": score,
+            "summary": summary,
+            "reminders": reminders,
+        }, error or summary_error or reminder_error
+
     def classify_email(self, email: dict) -> tuple[str, int, Optional[AIError]]:
         subject = email.get("subject", "").lower()
         body = email.get("body", "").lower()
@@ -43,17 +58,20 @@ class MockAIProvider(AIProvider):
         return min(5, max(1, score))
 
     def summarize_email(self, email: dict) -> tuple[str, Optional[AIError]]:
-        body = email.get("body", "")
+        body = (email.get("body", "") or "").strip()
+        if not body:
+            return "暂无可用内容。", None
+
         sentences = re.split(r"(?<=[.!?])\s+", body.strip())
         if len(sentences) <= 2:
-            return body[:500] if body else "No content to summarize.", None
+            return f"邮件内容：{body[:500]}", None
 
         first = sentences[0] if sentences else ""
         key_points = [s for s in sentences[1:4] if len(s) > 20]
         if not key_points:
-            return first[:500], None
+            return f"邮件摘要：{first[:500]}", None
 
-        summary = f"{first}\n\nKey points:\n"
+        summary = f"邮件摘要：{first}\n\n关键信息：\n"
         for i, pt in enumerate(key_points, 1):
             summary += f"- {pt.strip()[:200]}\n"
         return summary[:500], None

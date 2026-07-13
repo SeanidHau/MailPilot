@@ -12,6 +12,7 @@ class GmailAuthorizeResponse(BaseModel):
 
 class GmailStatusResponse(BaseModel):
     connected: bool
+    configured: bool = False
     email: Optional[str] = None
     scopes: Optional[str] = None
     expires_at: Optional[datetime] = None

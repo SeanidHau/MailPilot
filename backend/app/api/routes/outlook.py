@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response,
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
+from app.api.oauth_utils import callback_url_for
 from app.core.config import settings
 from app.db.session import get_db
 from app.db.models import User
@@ -19,15 +20,16 @@ def _oauth_error(exc: outlook_service.OutlookOAuthError) -> HTTPException:
 
 
 @router.get("/outlook/authorize", response_model=OutlookAuthorizeResponse)
-def authorize_outlook(response: Response, user: User = Depends(require_user)):
+def authorize_outlook(request: Request, response: Response, user: User = Depends(require_user)):
     try:
         nonce = outlook_service.create_oauth_nonce()
-        authorization_url = outlook_service.build_authorization_url(user.id, nonce)
+        redirect_uri = settings.outlook_redirect_uri or callback_url_for(request, "outlook_oauth_callback")
+        authorization_url = outlook_service.build_authorization_url(user.id, nonce, redirect_uri)
         response.set_cookie(
             outlook_service.OAUTH_STATE_COOKIE,
             nonce,
             httponly=True,
-            secure=settings.outlook_redirect_uri.startswith("https://"),
+            secure=redirect_uri.startswith("https://"),
             samesite="lax",
             max_age=outlook_service.STATE_EXPIRE_MINUTES * 60,
             path="/api/outlook/oauth/callback",

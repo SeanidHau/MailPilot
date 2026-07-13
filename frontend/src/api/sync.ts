@@ -1,17 +1,12 @@
 import { api } from './client';
+import type { JobAcceptedResponse } from '../types/job';
 
-export interface SyncResult {
-  new: number;
-  skipped: number;
-  errors: string[];
-}
-
-export async function syncGmailInbox(): Promise<SyncResult> {
+export async function syncGmailInbox(): Promise<JobAcceptedResponse> {
   const { data } = await api.post('/sync/gmail');
   return data;
 }
 
-export async function syncOutlookInbox(): Promise<SyncResult> {
+export async function syncOutlookInbox(): Promise<JobAcceptedResponse> {
   const { data } = await api.post('/sync/outlook');
   return data;
 }

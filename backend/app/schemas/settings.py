@@ -11,3 +11,8 @@ class AIProviderConfig(BaseModel):
     anthropic_api_key: str = ""
     anthropic_base_url: str = "https://api.anthropic.com"
     anthropic_model: str = "claude-sonnet-4-5-20250929"
+
+
+class AISettingsUpdateResponse(AIProviderConfig):
+    job_id: int
+    job_status: str

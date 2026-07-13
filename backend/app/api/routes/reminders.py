@@ -5,11 +5,27 @@ from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.schemas.reminder import ReminderResponse, ReminderListResponse, ReminderPatchRequest, DeleteReminderResponse
+from app.schemas.reminder import (
+    ReminderResponse,
+    ReminderListResponse,
+    ReminderPatchRequest,
+    DeleteReminderResponse,
+    BulkReminderRequest,
+    BulkReminderResponse,
+)
 from app.services import reminder_service
 from app.api.deps import require_user
 
 router = APIRouter()
+
+
+@router.post("/reminders/bulk", response_model=BulkReminderResponse)
+def bulk_update_reminders(
+    body: BulkReminderRequest,
+    db: Session = Depends(get_db),
+    user=Depends(require_user),
+):
+    return reminder_service.bulk_update_reminders(db, body.reminder_ids, body.action, user.id)
 
 
 @router.get("/reminders", response_model=ReminderListResponse)

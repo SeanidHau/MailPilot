@@ -1,43 +1,98 @@
 # MailPilot
 
-MailPilot is an intelligent email assistant web application with AI-assisted classification, summaries, reply drafts, and reminder extraction.
+MailPilot is a production-oriented MVP of an intelligent email workspace. It combines mailbox synchronization, AI-assisted triage, summaries, reminders, reply drafting, and user-confirmed email sending in a web application.
 
-Project documents:
+The default AI provider is a local mock provider, so the project can run without an external model API. OpenAI-compatible and Anthropic providers can be configured per user from the Settings page.
 
-- [Development Plan](docs/development-plan.md)
-- [Execution Plan](docs/execution-plan.md)
-- [Production Setup](docs/production.md)
-- [中文文档](README_CN.md) | [Chinese](README_CN.md)
+## What It Does
+
+- User registration, login, JWT authentication, and per-user data isolation
+- Gmail OAuth and Microsoft Graph OAuth with encrypted access and refresh tokens
+- Gmail and Outlook inbox synchronization with provider-message deduplication and read-state updates
+- JSON upload/import for local mailbox data
+- Automatic email classification into important, normal, promotion, billing, school/work, needs reply, and spam
+- Importance scoring, multi-signal spam detection, and Chinese email summaries
+- Reminder extraction for deadlines, meetings, payments, and reply tasks
+- AI-generated reply drafts with formal, brief, polite-decline, and information-request tones
+- Manual compose flow for new emails, draft editing, deletion, and user-confirmed sending
+- Dashboard statistics, audit logs, search, filters, sorting, pagination, and bulk email/reminder actions
+- Background jobs for imports, mailbox sync, and AI processing with persistent progress records
+
+## Screens
+
+- Dashboard: inbox workload, important messages, pending reminders, and empty state onboarding
+- Emails: searchable and filterable inbox with sorting by received time or importance
+- Email detail: message body, summary, AI actions, drafts, and extracted reminders
+- Drafts: reply drafts, new-message compose, provider selection, send confirmation, and failure retry
+- Reminders: due dates, completion, soft deletion, multi-select, bulk completion, and bulk deletion
+- Settings: AI provider configuration, JSON import, Gmail, and Outlook connections
+
+## Architecture
+
+```text
+React + TypeScript + Vite
+        |
+        | REST / JSON through /api proxy
+        v
+FastAPI + SQLAlchemy + Alembic
+        |
+        +-- PostgreSQL
+        +-- AI providers: mock / OpenAI-compatible / Anthropic
+        +-- Gmail API / Microsoft Graph
+        +-- In-process background task runner
+```
+
+The backend owns authentication, authorization, validation, provider integrations, background job records, and encrypted secret handling. The frontend uses TanStack Query for server state and React Router for protected application routes.
+
+## Requirements
+
+- Python 3.9 or newer
+- Node.js 18 or newer
+- Docker and Docker Compose for the local PostgreSQL service
 
 ## Quick Start
 
-### Prerequisites
+### 1. Start PostgreSQL
 
-- Python 3.9+
-- Node.js 18+
-- Docker (for PostgreSQL)
+From the repository root:
 
-### Backend
+```bash
+docker compose up -d db
+```
+
+### 2. Configure the backend
 
 ```bash
 cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
+cp .env.example .env
+```
 
-# Start PostgreSQL
-docker compose up -d db
+For a local first run, the default `AI_PROVIDER=mock` is sufficient. Set stable secrets before using the application beyond local development:
 
-# Run migrations
+```bash
+python3 -c "import secrets; print(secrets.token_hex(32))"
+python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+Use the first value for `JWT_SECRET_KEY` and the second for `ENCRYPTION_KEY`. Keep `ENCRYPTION_KEY` unchanged while encrypted AI keys and OAuth tokens exist in the database.
+
+### 3. Apply migrations and start the API
+
+```bash
+cd backend
+source .venv/bin/activate
 alembic upgrade head
-
-# Start server
 uvicorn app.main:app --reload --port 8000
 ```
 
-The API is available at `http://localhost:8000/api/`.
+The API is available at `http://localhost:8000/api/`. Interactive OpenAPI documentation is available at `http://localhost:8000/docs`.
 
-### Frontend
+### 4. Start the frontend
+
+In a second terminal:
 
 ```bash
 cd frontend
@@ -45,211 +100,248 @@ npm install
 npm run dev
 ```
 
-The app is available at `http://localhost:5173`. The dev server proxies `/api` requests to the backend.
+Open `http://localhost:5173`. Vite proxies `/api` to `http://localhost:8000`.
 
-### Run Tests
+### 5. Create local data
 
-```bash
-cd backend
-source .venv/bin/activate
-pytest tests/ -v
-```
-
-### Demo Data CLI
-
-A small CLI is included for local demo data seeding and resetting. It is available after installing the backend package.
+Register through the UI, or seed a local demo account:
 
 ```bash
 cd backend
 source .venv/bin/activate
-
-# Seed demo data (creates demo user + imports mock emails + runs AI processing)
 mailpilot seed
-
-# Reset the database and seed demo data. On PostgreSQL this runs Alembic migrations,
-# so objects defined only in migrations (e.g. partial indexes) are recreated.
-mailpilot reset --yes --seed
-
-# Use a custom demo user
-mailpilot seed --email admin@example.com --password changeme
-
-# Skip AI classification/summarization/drafts/reminders to save time or API quota
-mailpilot seed --no-ai
 ```
 
-**Default demo user:** `demo@mailpilot.dev` / `demo123`  
-**Safety:** `mailpilot reset` only allows localhost/127.0.0.1 SQLite or PostgreSQL databases by default. Use `--force` to override for non-local databases, and the command always asks for confirmation unless `--yes` is passed.  
-**Warning:** `mailpilot reset` drops and recreates all tables. Use it only in local development.
+Default demo credentials:
 
-## Environment Variables
+```text
+Email:    demo@mailpilot.dev
+Password: demo123
+```
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DATABASE_URL` | `postgresql://mailpilot:mailpilot@localhost:5432/mailpilot` | Database connection string |
-| `AI_PROVIDER` | `mock` | Default AI provider (`mock`, `openai`, or `anthropic`) |
-| `CORS_ORIGINS` | `http://localhost:5173` | Comma-separated CORS origins |
-| `OPENAI_API_KEY` | empty | Default OpenAI-compatible API key |
-| `OPENAI_BASE_URL` | `https://api.openai.com/v1` | Default OpenAI-compatible base URL |
-| `OPENAI_MODEL` | `gpt-4o` | Default OpenAI-compatible model |
-| `ANTHROPIC_API_KEY` | empty | Default Anthropic API key |
-| `ANTHROPIC_BASE_URL` | `https://api.anthropic.com` | Default Anthropic base URL |
-| `ANTHROPIC_MODEL` | `claude-sonnet-4-5-20250929` | Default Anthropic model |
-| `AI_REQUEST_TIMEOUT` | `60.0` | Per-request timeout for OpenAI-compatible and Anthropic calls, in seconds |
-| `AI_MAX_RETRIES` | `2` | Maximum retry count for retryable AI provider failures |
-| `AI_RATE_LIMIT_PER_MINUTE` | `30` | Global AI provider request rate limit |
-| `JWT_SECRET_KEY` | generated if unset | JWT signing key. Set a stable secret outside local development |
-| `ENCRYPTION_KEY` | generated if unset | Fernet key for encrypted stored AI API keys. Must be stable to decrypt saved values after restart |
-| `GMAIL_CLIENT_ID` | empty | Google OAuth client ID for Gmail integration |
-| `GMAIL_CLIENT_SECRET` | empty | Google OAuth client secret for Gmail integration |
-| `GMAIL_REDIRECT_URI` | `http://localhost:8000/api/gmail/oauth/callback` | Google OAuth callback URL. Must match the Google Cloud OAuth client |
-| `GMAIL_SCOPES` | `openid email https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send` | Space-separated Google OAuth scopes |
-| `GMAIL_OAUTH_SUCCESS_URL` | `http://localhost:5173/settings?gmail=connected` | Frontend URL used after successful Gmail OAuth |
-| `GMAIL_OAUTH_FAILURE_URL` | `http://localhost:5173/settings?gmail=error` | Frontend URL used after failed Gmail OAuth |
-| `OUTLOOK_CLIENT_ID` | empty | Microsoft OAuth client ID for Outlook / Microsoft Graph integration |
-| `OUTLOOK_CLIENT_SECRET` | empty | Microsoft OAuth client secret for Outlook / Microsoft Graph integration |
-| `OUTLOOK_REDIRECT_URI` | `http://localhost:8000/api/outlook/oauth/callback` | Microsoft OAuth callback URL. Must match the Azure app registration |
-| `OUTLOOK_SCOPES` | `offline_access User.Read Mail.Read Mail.Send` | Space-separated Microsoft Graph OAuth scopes |
-| `OUTLOOK_OAUTH_SUCCESS_URL` | `http://localhost:5173/settings?outlook=connected` | Frontend URL used after successful Outlook OAuth |
-| `OUTLOOK_OAUTH_FAILURE_URL` | `http://localhost:5173/settings?outlook=error` | Frontend URL used after failed Outlook OAuth |
+Useful options:
+
+```bash
+mailpilot seed --email admin@example.com --password changeme
+mailpilot seed --no-ai
+mailpilot seed --no-drafts --no-reminders
+mailpilot reset --yes --seed
+```
+
+`mailpilot reset` drops all tables and reapplies the schema. It is intended for local development only and protects non-local databases unless `--force` is supplied.
+
+## Configuration
+
+The complete template is [backend/.env.example](backend/.env.example). The most important settings are:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `DATABASE_URL` | Local PostgreSQL URL | SQLAlchemy database connection |
+| `AI_PROVIDER` | `mock` | Server-side default provider: `mock`, `openai`, or `anthropic` |
+| `OPENAI_API_KEY` | empty | OpenAI-compatible provider key |
+| `OPENAI_BASE_URL` | `https://api.openai.com/v1` | OpenAI-compatible endpoint |
+| `OPENAI_MODEL` | `gpt-4o` | OpenAI-compatible model |
+| `ANTHROPIC_API_KEY` | empty | Anthropic provider key |
+| `ANTHROPIC_BASE_URL` | `https://api.anthropic.com` | Anthropic endpoint |
+| `ANTHROPIC_MODEL` | `claude-sonnet-4-5-20250929` | Anthropic model |
+| `AI_REQUEST_TIMEOUT` | `30` | AI request timeout in seconds |
+| `AI_MAX_RETRIES` | `1` | Maximum retries for retryable provider failures |
+| `AI_RATE_LIMIT_PER_MINUTE` | `30` | Global provider request limit |
+| `JWT_SECRET_KEY` | `change-me-in-production` | JWT signing secret |
+| `ENCRYPTION_KEY` | empty | Fernet key for stored API keys and OAuth tokens |
+| `CORS_ORIGINS` | `http://localhost:5173` | Comma-separated allowed origins |
 | `VITE_API_BASE_URL` | `/api` | Frontend API base URL |
 
-## API Endpoints
+AI API keys are configured per user in Settings and encrypted at rest. The environment provider settings are used as defaults when a user has not saved a provider configuration.
 
-### Health
-- `GET /api/health`
+## Gmail and Outlook Setup
 
-### Auth
-- `POST /api/auth/register` — Register a user and return a JWT
-- `POST /api/auth/login` — Login and return a JWT
-- `GET /api/auth/me` — Current user profile, requires Bearer token
+Real mailbox synchronization and sending require provider OAuth credentials.
 
-### Emails
-- `POST /api/emails/import` — Import mock email data
-- `GET /api/emails` — List emails (supports `q`, `category`, `is_read`, `min_importance`, `max_importance`, `page`, `page_size`)
-- `GET /api/emails/{id}` — Email detail with drafts and reminders
-- `PATCH /api/emails/{id}` — Update read status, category, or importance score
-- `POST /api/emails/{id}/classify` — AI classification
-- `POST /api/emails/{id}/summarize` — AI summary
-- `POST /api/emails/{id}/drafts` — Generate reply draft (body: `{"tone": "formal|brief|polite_decline|ask_info"}`)
-- `POST /api/emails/{id}/reminders/extract` — Extract reminders from email
+### Local callback URLs through Vite
 
-### Drafts
-- `GET /api/drafts` — List drafts
-- `GET /api/drafts/{id}` — Draft detail
-- `PATCH /api/drafts/{id}` — Update draft content or status
+Register these exact URLs with the provider consoles:
 
-### Reminders
-- `GET /api/reminders` — List reminders (supports `status` filter)
-- `PATCH /api/reminders/{id}` — Update reminder (complete, etc.)
-- `DELETE /api/reminders/{id}` — Soft-delete reminder
+```text
+Google:    http://localhost:5173/api/gmail/oauth/callback
+Microsoft: http://localhost:5173/api/outlook/oauth/callback
+```
 
-### Dashboard
-- `GET /api/dashboard/summary` — Dashboard statistics
+Set:
 
-### Feedback
-- `GET /api/feedback` — Classification change history
+```dotenv
+GMAIL_CLIENT_ID=...
+GMAIL_CLIENT_SECRET=...
+OUTLOOK_CLIENT_ID=...
+OUTLOOK_CLIENT_SECRET=...
+```
 
-### Settings
-- `GET /api/settings/ai` — Read AI provider config. Uses the current user's config when authenticated, otherwise returns defaults
-- `PUT /api/settings/ai` — Save encrypted per-user AI provider config, requires Bearer token
+The default scopes include Gmail read/send access and Microsoft Graph `Mail.Read`/`Mail.Send` access. OAuth state is signed and protected with an HttpOnly nonce cookie. Tokens are encrypted before storage.
 
-### Gmail
-- `GET /api/gmail/authorize` - Build a Google OAuth authorization URL, requires Bearer token
-- `GET /api/gmail/oauth/callback` - Google OAuth callback; exchanges code, stores encrypted tokens, then redirects to the frontend
-- `GET /api/gmail/status` - Read the current user's Gmail connection state, requires Bearer token
-- `POST /api/gmail/refresh` - Force refresh the current user's Gmail access token, requires Bearer token
-- `DELETE /api/gmail/disconnect` - Remove the current user's stored Gmail tokens, requires Bearer token
+If the frontend calls the backend directly, register these alternatives instead:
 
-### Outlook / Microsoft Graph
-- `GET /api/outlook/authorize` - Build a Microsoft OAuth authorization URL, requires Bearer token
-- `GET /api/outlook/oauth/callback` - Microsoft OAuth callback; exchanges code, stores encrypted tokens, then redirects to the frontend
-- `GET /api/outlook/status` - Read the current user's Outlook connection state, requires Bearer token
-- `POST /api/outlook/refresh` - Force refresh the current user's Outlook access token, requires Bearer token
-- `DELETE /api/outlook/disconnect` - Remove the current user's stored Outlook tokens, requires Bearer token
+```text
+Google:    http://localhost:8000/api/gmail/oauth/callback
+Microsoft: http://localhost:8000/api/outlook/oauth/callback
+```
 
-### Mailbox Sync
-- `POST /api/sync/gmail` - Sync Gmail inbox emails with dedup by provider message ID, requires Bearer token
-- `POST /api/sync/outlook` - Sync Outlook inbox emails with dedup by provider message ID, requires Bearer token
+For production, configure exact public callback URLs using `GMAIL_REDIRECT_URI` and `OUTLOOK_REDIRECT_URI`, and follow [docs/production.md](docs/production.md) for secret management and key rotation.
 
-## Email Categories
+## API Overview
 
-| Category | Description |
-|----------|-------------|
-| `important` | Urgent, critical, deadline-related |
-| `normal` | General correspondence |
-| `promotion` | Marketing, discounts, campaigns |
-| `bill` | Invoices, payments, subscriptions |
-| `school_work` | Academic or work-related tasks |
-| `needs_reply` | Requires response or confirmation |
-| `spam` | Suspicious or unwanted |
+All data endpoints require `Authorization: Bearer <token>` unless noted otherwise. The complete contract is available from `/docs`.
 
-## Draft Tones
+### System and authentication
 
-| Tone | Description |
-|------|-------------|
-| `formal` | Complete and professional |
-| `brief` | Short and direct |
-| `polite_decline` | Respectful refusal |
-| `ask_info` | Requests clarification or details |
+```text
+GET  /api/health
+POST /api/auth/register
+POST /api/auth/login
+GET  /api/auth/me
+```
 
-## MVP Limitations
+### Emails and processing
 
-- Multi-signal spam detection is implemented (keywords, links, sender reputation, etc.), but no Bayesian/ML classifier yet
-- Gmail/Outlook OAuth and inbox sync are supported with per-provider message ID dedup and read/unread state sync
-- No automatic email sending
-- User authentication exists with per-user data isolation; unauthenticated access to data APIs returns 401
-- AI providers are configurable with timeout, retry, and rate-limit handling, but production-grade observability and cost controls are not complete
+```text
+POST /api/emails/import                 Queue bundled mock import
+POST /api/emails/import/upload           Queue JSON email import
+GET  /api/emails                        List, filter, sort, and paginate
+PATCH /api/emails/{id}                  Read/category/importance updates
+POST /api/emails/bulk                   Bulk mark-read or soft-delete
+GET  /api/emails/{id}                   Detail with drafts/reminders
+POST /api/emails/{id}/classify          Classify one email
+POST /api/emails/{id}/summarize         Summarize one email
+POST /api/emails/process-ai             Queue unprocessed AI work
+```
 
-## Technology Stack
+`GET /api/emails` supports `q`, `category`, `is_read`, `min_importance`, `max_importance`, `sort_by`, `sort_order`, `page`, and `page_size`. `sort_by` is `received_at` or `importance`; the default is `received_at` descending.
 
-**Backend:** FastAPI, SQLAlchemy, Alembic, Pydantic, PostgreSQL
+### Drafts and sending
 
-**Frontend:** React 18, TypeScript, Vite, TanStack Query, React Router
+```text
+POST /api/emails/{id}/drafts             Generate a reply draft
+POST /api/drafts                         Create a new composed email draft
+GET  /api/drafts                         List drafts
+GET  /api/drafts/{id}                    Draft detail
+PATCH /api/drafts/{id}                   Edit content, recipient, subject, or status
+DELETE /api/drafts/{id}                  Soft-delete a draft
+POST /api/drafts/{id}/send               Send after confirmation
+```
 
-**AI:** Mock rule-based provider, OpenAI-compatible provider, and Anthropic provider
+The send request may specify `{"provider":"gmail"}` or `{"provider":"outlook"}`. The frontend requires a connected mailbox and confirmation before sending. Sendable states are `draft`, `saved`, `ready_to_send`, and `send_failed`; successful sends become `sent`.
 
-## TODO
+### Reminders and dashboard
 
-### Account And Data Privacy
+```text
+GET  /api/reminders
+PATCH /api/reminders/{id}
+DELETE /api/reminders/{id}
+POST /api/reminders/bulk                Complete or delete selected reminders
+POST /api/emails/{id}/reminders/extract  Extract reminders from one email
+GET  /api/dashboard/summary
+```
 
-- [x] Add `user_id` ownership to `emails`, `drafts`, `reminders`, and `classification_feedback`, then filter all list/detail/update/delete APIs by the current user.
-- [x] Decide how anonymous/demo mock email data should work after user-level data ownership is added.
-- [x] Add frontend route guards for pages/actions that should require login, especially saving AI settings and future mailbox data.
-- [x] Add auth-focused tests for register, login, `/auth/me`, duplicate registration, invalid password, expired/invalid token, and logout behavior.
-- [x] Add encryption-focused tests that verify AI API keys are encrypted at rest and decrypt correctly with a stable `ENCRYPTION_KEY`.
+### Mailbox connections and jobs
 
-### Mailbox Integration
+```text
+GET    /api/gmail/authorize
+GET    /api/gmail/oauth/callback
+GET    /api/gmail/status
+POST   /api/gmail/refresh
+DELETE /api/gmail/disconnect
 
-- [x] Implement Gmail OAuth authorization and token refresh.
-- [x] Implement Outlook/Microsoft Graph OAuth authorization and token refresh.
-- [x] Add mailbox sync jobs for inbox fetch, incremental updates, read/unread state, and deduplication by provider message ID.
-- [x] Add manual JSON upload/import UI instead of only importing the bundled backend mock file.
-- [x] Add attachment metadata support and decide whether attachment content should be indexed or summarized.
+GET    /api/outlook/authorize
+GET    /api/outlook/oauth/callback
+GET    /api/outlook/status
+POST   /api/outlook/refresh
+DELETE /api/outlook/disconnect
 
-### Email Actions
+POST /api/sync/gmail
+POST /api/sync/outlook
+GET  /api/jobs/{id}
+GET  /api/jobs/active?job_type=ai_process
+```
 
-- [x] Implement optional real email sending from saved drafts, with an explicit confirmation step.
-- [x] Add draft-to-send workflow state such as `ready_to_send`, `sent`, and `send_failed`.
-- [x] Add audit logs for user-triggered email actions and AI-generated content edits.
+Import, sync, and AI processing endpoints return a job ID. Poll the job endpoint for `queued`, `running`, `completed`, or `failed` state and progress data.
 
-### AI Reliability
+### Settings, feedback, and audit
 
-- [x] Add provider-level timeout, retry, and rate-limit handling for OpenAI-compatible and Anthropic calls.
-- [x] Add structured error responses when real AI providers fail, instead of returning only generic fallback text.
-- [x] Add per-user AI provider selection to background/service calls consistently once all data is user-scoped.
-- [x] Add prompt/version metadata to generated summaries, drafts, classifications, and extracted reminders.
-- [x] Add evaluation tests for classification accuracy, reminder extraction, and reply draft quality beyond the current mock-provider unit tests.
+```text
+GET  /api/settings/ai
+PUT  /api/settings/ai
+GET  /api/feedback
+GET  /api/audit
+```
 
-### Product And UX
+## Data and Security
 
-- [x] Add onboarding that guides first-time users through registration, mock import, and AI provider configuration.
-- [x] Add clearer settings-state messaging when the user is not logged in and attempts to save authenticated settings.
-- [x] Add better empty states for dashboards before any email import.
-- [x] Add responsive/mobile QA for the full authenticated flow.
+- Passwords are stored as bcrypt hashes.
+- JWTs are used for API authentication.
+- Email, draft, reminder, feedback, settings, OAuth account, audit, and job queries are scoped to the authenticated user.
+- AI API keys and Gmail/Outlook access and refresh tokens are Fernet-encrypted at rest.
+- OAuth uses signed state values and an HttpOnly nonce cookie for CSRF protection.
+- Classification changes, AI actions, imports, draft sends, and bulk actions are recorded in audit logs.
+- Gmail and Outlook sync stores attachment metadata only; attachment contents are not indexed or summarized.
 
-### Operations
+## Testing
 
-- [x] Document production setup for stable `JWT_SECRET_KEY` and `ENCRYPTION_KEY`; rotating `ENCRYPTION_KEY` requires a re-encryption plan.
-- [x] Add CI jobs for backend tests, frontend typecheck/build, and Alembic migration verification on a fresh PostgreSQL database.
-- [x] Add seed/reset commands for local demo data.
-- [x] Add logging for auth failures, AI provider failures, import counts, and reminder extraction counts.
+Backend tests use isolated database fixtures and cover authentication, ownership isolation, encryption, OAuth state/token handling, AI providers, retry behavior, sync parsing, spam detection, background jobs, draft sending, reminders, and API validation.
+
+```bash
+cd backend
+source .venv/bin/activate
+pytest -q
+```
+
+Frontend type checking and production build:
+
+```bash
+cd frontend
+npm run build
+```
+
+Migration verification:
+
+```bash
+cd backend
+alembic upgrade head
+```
+
+## Project Layout
+
+```text
+backend/
+  app/
+    ai/                 Providers, prompts, parsing, retry, spam rules
+    api/                FastAPI routes and authentication dependencies
+    db/                 SQLAlchemy models and database session
+    schemas/            Pydantic request/response models
+    services/           Business logic, OAuth, sync, jobs, and sending
+  alembic/              Database migrations
+  tests/                Backend test suite
+frontend/
+  src/api/              Typed API clients
+  src/components/       Shared UI components
+  src/pages/            Protected application pages
+  src/types/            Shared TypeScript types
+  src/styles/            Global responsive styles
+docs/
+  development-plan.md   Product and implementation plan
+  execution-plan.md     Phase-by-phase execution plan
+  production.md         Production secrets and deployment notes
+```
+
+## Current Boundaries and Roadmap
+
+- Attachment content extraction for PDFs, images, and office files is not included; only metadata is stored.
+- The background task runner is in-process. A distributed queue and worker service should be added before multi-instance production deployment.
+- AI classification currently combines provider output and deterministic rules; a trained classifier and evaluation pipeline are future work.
+- There is no team/shared mailbox or organization-level permission model yet.
+- Real-time job updates currently use polling rather than WebSockets or server-sent events.
+
+## Documentation
+
+- [Production setup](docs/production.md)
+- [Development plan](docs/development-plan.md)
+- [Execution plan](docs/execution-plan.md)
+- [中文 README](README_CN.md)

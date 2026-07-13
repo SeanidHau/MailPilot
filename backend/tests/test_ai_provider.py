@@ -1,4 +1,5 @@
 from app.ai.providers.mock import MockAIProvider
+from app.ai.prompts import build_summarize_prompt
 
 
 def test_classify_important():
@@ -78,6 +79,24 @@ def test_summarize_short_email():
     email = {"subject": "Hi", "body": "Thanks."}
     summary, error = provider.summarize_email(email)
     assert len(summary) > 0
+    assert error is None
+
+
+def test_summarize_prompt_requires_simplified_chinese():
+    prompt = build_summarize_prompt({"subject": "Project update", "body": "The project is on track."})
+    assert "简体中文" in prompt
+    assert "原文是英文" in prompt
+    assert "只输出摘要正文" in prompt
+
+
+def test_mock_summary_uses_chinese_labels():
+    provider = MockAIProvider()
+    summary, error = provider.summarize_email({
+        "subject": "Project update",
+        "body": "The project is on track. We completed phase one. Please review the report.",
+    })
+    assert "邮件摘要" in summary
+    assert "关键信息" in summary
     assert error is None
 
 

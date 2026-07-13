@@ -6,12 +6,11 @@ import {
   Bell,
   CheckCircle2,
   Clock3,
+  FileJson,
   Inbox,
-  MailPlus,
   PlugZap,
   Sparkles,
   Star,
-  Upload,
 } from 'lucide-react'
 import { fetchDashboard } from '../api/dashboard'
 import { CategoryBadge } from '../components/CategoryBadge'
@@ -36,17 +35,17 @@ export function DashboardPage() {
       <div className="dashboard-page">
         <section className="dashboard-hero dashboard-hero-empty">
           <div className="dashboard-hero-copy">
-            <div className="dashboard-eyebrow">MailPilot Command Desk</div>
-            <h1>把收件箱接入你的工作台</h1>
+            <div className="dashboard-eyebrow">收件箱工作台</div>
+            <h1>接入邮箱，开始处理待办邮件</h1>
             <p>
-              还没有邮件数据。导入示例数据、上传 JSON 文件，或连接邮箱后，MailPilot 会开始整理分类、草稿和提醒。
+              当前账号还没有邮件数据。连接 Gmail 或 Outlook 后可以同步收件箱；也可以批量导入已有邮件记录。
             </p>
             <div className="dashboard-actions">
-              <Link to="/settings#import" className="dashboard-primary-action">
-                导入邮件 <ArrowRight size={16} />
+              <Link to="/settings#mailboxes" className="dashboard-primary-action">
+                连接邮箱 <ArrowRight size={16} />
               </Link>
-              <Link to="/emails" className="dashboard-secondary-action">
-                查看邮件页
+              <Link to="/settings#import" className="dashboard-secondary-action">
+                批量导入
               </Link>
             </div>
           </div>
@@ -56,16 +55,16 @@ export function DashboardPage() {
               <Inbox size={44} />
             </div>
             <div className="orbit-step orbit-step-a">
-              <MailPlus size={18} />
-              <span>示例数据</span>
+              <PlugZap size={18} />
+              <span>邮箱同步</span>
             </div>
             <div className="orbit-step orbit-step-b">
-              <Upload size={18} />
-              <span>JSON 上传</span>
+              <FileJson size={18} />
+              <span>批量导入</span>
             </div>
             <div className="orbit-step orbit-step-c">
-              <PlugZap size={18} />
-              <span>邮箱连接</span>
+              <Sparkles size={18} />
+              <span>AI 处理</span>
             </div>
           </div>
         </section>
@@ -79,7 +78,7 @@ export function DashboardPage() {
     <div className="dashboard-page">
       <section className="dashboard-hero">
         <div className="dashboard-hero-copy">
-          <div className="dashboard-eyebrow">Today in MailPilot</div>
+          <div className="dashboard-eyebrow">今日概览</div>
           <h1>今天的邮件处理台</h1>
           <p>优先处理未读、重要事项和即将到期的提醒。</p>
         </div>
@@ -124,7 +123,7 @@ export function DashboardPage() {
         <section className="dashboard-section">
           <div className="dashboard-section-header">
             <div>
-              <span className="dashboard-section-kicker">Priority</span>
+              <span className="dashboard-section-kicker">优先处理</span>
               <h2><Star size={18} /> 最近重要邮件</h2>
             </div>
             <Link to="/emails" className="dashboard-link">全部邮件 <ArrowRight size={14} /></Link>
@@ -156,7 +155,7 @@ export function DashboardPage() {
         <section className="dashboard-section">
           <div className="dashboard-section-header">
             <div>
-              <span className="dashboard-section-kicker">Action</span>
+              <span className="dashboard-section-kicker">待办事项</span>
               <h2><Bell size={18} /> 近期提醒</h2>
             </div>
             <Link to="/reminders" className="dashboard-link">全部提醒 <ArrowRight size={14} /></Link>

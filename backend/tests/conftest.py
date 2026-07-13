@@ -1,4 +1,5 @@
 import pytest
+import time
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
@@ -52,5 +53,37 @@ def auth_client(client):
     assert resp.status_code == 200
     token = resp.json()["access_token"]
     client.headers["Authorization"] = f"Bearer {token}"
-    return client
 
+    # The production API returns immediately for background jobs. Tests that
+    # create fixture emails need to wait before querying the imported records.
+    original_post = client.post
+    original_put = client.put
+    original_get = client.get
+
+    def wait_for_job_response(response, args, kwargs):
+        url = str(args[0]) if args else str(kwargs.get("url", ""))
+        try:
+            response_data = response.json()
+        except ValueError:
+            response_data = {}
+        job_id = response_data.get("job_id")
+        if job_id and "/api/jobs/" not in url:
+            deadline = time.monotonic() + 10
+            while job_id and time.monotonic() < deadline:
+                job_response = original_get(f"/api/jobs/{job_id}")
+                if job_response.status_code == 200:
+                    job_status = job_response.json().get("status")
+                    if job_status in {"completed", "failed"}:
+                        break
+                time.sleep(0.01)
+        return response
+
+    def post_and_wait_for_job(*args, **kwargs):
+        return wait_for_job_response(original_post(*args, **kwargs), args, kwargs)
+
+    def put_and_wait_for_job(*args, **kwargs):
+        return wait_for_job_response(original_put(*args, **kwargs), args, kwargs)
+
+    client.post = post_and_wait_for_job
+    client.put = put_and_wait_for_job
+    return client

@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 
-PROMPT_VERSION = "1.0.0"
+PROMPT_VERSION = "1.2.0"
 
 
 def make_metadata(provider: str, model: str) -> str:

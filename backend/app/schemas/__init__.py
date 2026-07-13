@@ -38,3 +38,4 @@ class DraftStatus(str, Enum):
     ready_to_send = "ready_to_send"
     sent = "sent"
     send_failed = "send_failed"
+    deleted = "deleted"

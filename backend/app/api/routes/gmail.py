@@ -5,6 +5,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_user
+from app.api.oauth_utils import callback_url_for
 from app.core.config import settings
 from app.db.models import User
 from app.db.session import get_db
@@ -24,19 +25,20 @@ def _oauth_error(exc: GmailOAuthError) -> HTTPException:
 
 
 @router.get("/gmail/authorize", response_model=GmailAuthorizeResponse)
-def authorize_gmail(response: Response, user: User = Depends(require_user)):
+def authorize_gmail(request: Request, response: Response, user: User = Depends(require_user)):
     try:
         nonce = gmail_service.create_oauth_nonce()
+        redirect_uri = settings.gmail_redirect_uri or callback_url_for(request, "gmail_oauth_callback")
         response.set_cookie(
             gmail_service.OAUTH_STATE_COOKIE,
             nonce,
             httponly=True,
-            secure=settings.gmail_redirect_uri.startswith("https://"),
+            secure=redirect_uri.startswith("https://"),
             samesite="lax",
             max_age=gmail_service.STATE_EXPIRE_MINUTES * 60,
             path="/api/gmail/oauth/callback",
         )
-        return {"authorization_url": gmail_service.build_authorization_url(user.id, nonce)}
+        return {"authorization_url": gmail_service.build_authorization_url(user.id, nonce, redirect_uri)}
     except GmailOAuthError as exc:
         raise _oauth_error(exc)
 

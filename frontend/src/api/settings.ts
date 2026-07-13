@@ -1,12 +1,12 @@
 import { api } from './client';
-import type { AIProviderConfig, GmailAuthorizeResponse, GmailStatus, OutlookAuthorizeResponse, OutlookStatus } from '../types/settings';
+import type { AIProviderConfig, AISettingsUpdateResponse, GmailAuthorizeResponse, GmailStatus, OutlookAuthorizeResponse, OutlookStatus } from '../types/settings';
 
 export async function fetchAISettings(): Promise<AIProviderConfig> {
   const { data } = await api.get('/settings/ai');
   return data;
 }
 
-export async function updateAISettings(config: AIProviderConfig): Promise<AIProviderConfig> {
+export async function updateAISettings(config: AIProviderConfig): Promise<AISettingsUpdateResponse> {
   const { data } = await api.put('/settings/ai', config);
   return data;
 }

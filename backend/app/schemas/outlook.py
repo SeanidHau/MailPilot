@@ -10,6 +10,7 @@ class OutlookAuthorizeResponse(BaseModel):
 
 class OutlookStatusResponse(BaseModel):
     connected: bool
+    configured: bool = False
     email: Optional[str] = None
     scopes: Optional[str] = None
     expires_at: Optional[datetime.datetime] = None

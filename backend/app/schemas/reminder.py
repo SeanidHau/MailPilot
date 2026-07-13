@@ -1,7 +1,7 @@
 from __future__ import annotations
 import datetime
-from typing import Optional
-from pydantic import BaseModel
+from typing import Literal, Optional
+from pydantic import BaseModel, Field
 
 from app.schemas import ReminderStatus
 
@@ -35,3 +35,15 @@ class ReminderPatchRequest(BaseModel):
 
 class DeleteReminderResponse(BaseModel):
     status: str
+
+
+class BulkReminderRequest(BaseModel):
+    reminder_ids: list[int] = Field(min_length=1, max_length=100)
+    action: Literal["complete", "delete"]
+
+
+class BulkReminderResponse(BaseModel):
+    action: str
+    requested: int
+    updated: int
+    not_found: int

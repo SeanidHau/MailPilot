@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock
 from app.services.sync_service import (
     sync_gmail_inbox, sync_outlook_inbox, SyncResult,
     _upsert_email, _extract_sender, _extract_subject, _extract_body,
-    _extract_is_read, _extract_recipients,
+    _extract_is_read, _extract_recipients, _gmail_list_messages, _outlook_list_messages,
 )
 from app.db.models import Email
 
@@ -17,6 +17,27 @@ class TestSyncResult:
 
 
 class TestGmailSync:
+    @patch("app.services.sync_service.httpx.get")
+    def test_gmail_list_messages_fetches_all_pages(self, mock_get):
+        first = MagicMock()
+        first.raise_for_status.return_value = None
+        first.json.return_value = {
+            "messages": [{"id": "gmail-1"}],
+            "nextPageToken": "page-2",
+        }
+        second = MagicMock()
+        second.raise_for_status.return_value = None
+        second.json.return_value = {"messages": [{"id": "gmail-2"}]}
+        mock_get.side_effect = [first, second]
+        result = SyncResult()
+
+        message_ids = _gmail_list_messages("fake-token", result)
+
+        assert message_ids == ["gmail-1", "gmail-2"]
+        assert mock_get.call_count == 2
+        assert mock_get.call_args_list[0].kwargs["params"]["maxResults"] == 500
+        assert mock_get.call_args_list[1].kwargs["params"]["pageToken"] == "page-2"
+
     @patch("app.services.sync_service.get_gmail_token", return_value="fake-token")
     @patch("app.services.sync_service._gmail_list_messages")
     def test_empty_inbox_returns_zero_new(self, mock_list, _mock_token, db_session):
@@ -36,8 +57,57 @@ class TestGmailSync:
         assert "network error" in result.errors[0]
         assert result.new == 0
 
+    @patch("app.services.sync_service.get_gmail_token", return_value="fake-token")
+    @patch("app.services.sync_service._gmail_get_message")
+    @patch("app.services.sync_service._gmail_list_messages")
+    def test_gmail_sync_automatically_processes_new_email(self, mock_list, mock_get, _mock_token, db_session):
+        mock_list.return_value = ["msg-auto-001"]
+        mock_get.return_value = {
+            "id": "msg-auto-001",
+            "payload": {
+                "headers": [
+                    {"name": "From", "value": "alice@example.com"},
+                    {"name": "To", "value": "me@example.com"},
+                    {"name": "Subject", "value": "Action Required: deadline"},
+                    {"name": "Date", "value": "Fri, 10 Jul 2026 10:00:00 +0000"},
+                ],
+                "mimeType": "text/plain",
+                "body": {"data": "UGxlYXNlIHJldmlldyB0aGlzIGRlYWRsaW5lIGJ5IDIwMjYtMDctMjAu"},
+            },
+            "labelIds": [],
+        }
+
+        result = sync_gmail_inbox(db_session, user_id=1)
+        email = db_session.query(Email).filter(Email.provider_message_id == "msg-auto-001").one()
+
+        assert result.new == 1
+        assert email.category == "important"
+        assert email.summary
+        assert email.ai_metadata is not None
+
 
 class TestOutlookSync:
+    @patch("app.services.sync_service.httpx.get")
+    def test_outlook_list_messages_fetches_all_pages(self, mock_get):
+        first = MagicMock()
+        first.raise_for_status.return_value = None
+        first.json.return_value = {
+            "value": [{"id": "outlook-1"}],
+            "@odata.nextLink": "https://graph.microsoft.com/v1.0/next-page",
+        }
+        second = MagicMock()
+        second.raise_for_status.return_value = None
+        second.json.return_value = {"value": [{"id": "outlook-2"}]}
+        mock_get.side_effect = [first, second]
+        result = SyncResult()
+
+        messages = _outlook_list_messages("fake-token", result)
+
+        assert [message["id"] for message in messages] == ["outlook-1", "outlook-2"]
+        assert mock_get.call_count == 2
+        assert mock_get.call_args_list[0].kwargs["params"]["$top"] == 100
+        assert mock_get.call_args_list[1].kwargs["params"] is None
+
     @patch("app.services.sync_service.get_outlook_token", return_value="fake-token")
     @patch("app.services.sync_service._outlook_list_messages")
     def test_empty_inbox_returns_zero_new(self, mock_list, _mock_token, db_session):

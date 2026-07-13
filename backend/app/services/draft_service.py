@@ -13,10 +13,32 @@ logger = logging.getLogger(__name__)
 
 
 def get_drafts(db: Session, user_id: int, page: int = 1, page_size: int = 20):
-    query = db.query(Draft).filter(Draft.user_id == user_id).order_by(Draft.created_at.desc())
+    query = (
+        db.query(Draft)
+        .filter(Draft.user_id == user_id, Draft.status != "deleted")
+        .order_by(Draft.created_at.desc())
+    )
     total = query.count()
     items = query.offset((page - 1) * page_size).limit(page_size).all()
     return items, total
+
+
+def create_draft(db: Session, user_id: int, recipient: str, subject: str, content: str) -> Draft:
+    draft = Draft(
+        email_id=None,
+        user_id=user_id,
+        tone="manual",
+        recipient=recipient.strip(),
+        subject=subject.strip(),
+        content=content,
+        status="draft",
+    )
+    db.add(draft)
+    db.flush()
+    audit_service.log_action(db, user_id, "draft_create", "draft", draft.id, "manual compose")
+    db.commit()
+    db.refresh(draft)
+    return draft
 
 
 def get_draft(db: Session, draft_id: int, user_id: int) -> Draft | None:
@@ -30,6 +52,18 @@ def patch_draft(db: Session, draft_id: int, updates: dict, user_id: int) -> Draf
     for key, value in updates.items():
         if value is not None:
             setattr(draft, key, value)
+    db.commit()
+    db.refresh(draft)
+    return draft
+
+
+def delete_draft(db: Session, draft_id: int, user_id: int) -> Draft | None:
+    draft = db.query(Draft).filter(Draft.id == draft_id, Draft.user_id == user_id).first()
+    if not draft:
+        return None
+
+    draft.status = "deleted"
+    audit_service.log_action(db, user_id, "draft_delete", "draft", draft_id, None)
     db.commit()
     db.refresh(draft)
     return draft

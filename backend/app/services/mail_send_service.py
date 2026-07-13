@@ -22,12 +22,26 @@ class SendError(Exception):
     pass
 
 
-def send_draft(db: Session, draft_id: int, user_id: int) -> Draft:
+SENDABLE_STATUSES = {"draft", "saved", "ready_to_send", "send_failed"}
+
+
+def send_draft(
+    db: Session,
+    draft_id: int,
+    user_id: int,
+    provider: Optional[str] = None,
+) -> Draft:
     draft = db.query(Draft).filter(Draft.id == draft_id, Draft.user_id == user_id).first()
     if not draft:
         raise SendError("Draft not found")
     if draft.status == "sent":
         raise SendError("Draft already sent")
+    if draft.status == "deleted":
+        raise SendError("Deleted drafts cannot be sent")
+    if draft.status not in SENDABLE_STATUSES:
+        raise SendError(f"Draft cannot be sent in status: {draft.status}")
+    if not draft.content or not draft.content.strip():
+        raise SendError("Draft content is empty")
 
     from app.db.models import GmailAccount, OutlookAccount
     gmail = db.query(GmailAccount).filter(GmailAccount.user_id == user_id).first()
@@ -40,7 +54,16 @@ def send_draft(db: Session, draft_id: int, user_id: int) -> Draft:
         raise SendError(msg)
 
     try:
-        if gmail:
+        if provider == "gmail":
+            if not gmail:
+                fail("Gmail mailbox is not connected. Connect Gmail in Settings first.")
+            _send_via_gmail(draft, db)
+        elif provider == "outlook":
+            if not outlook:
+                fail("Outlook mailbox is not connected. Connect Outlook in Settings first.")
+            _send_via_outlook(draft, db)
+        elif gmail:
+            # Keep the API backwards-compatible for clients that do not send a provider.
             _send_via_gmail(draft, db)
         elif outlook:
             _send_via_outlook(draft, db)
@@ -64,10 +87,22 @@ def send_draft(db: Session, draft_id: int, user_id: int) -> Draft:
 
 
 def _get_recipient_address(draft: Draft) -> str:
-    if not draft.email:
-        return ""
-    _, addr = parseaddr(draft.email.sender)
-    return addr or draft.email.sender
+    raw_recipient = draft.recipient or (draft.email.sender if draft.email else "")
+    _, addr = parseaddr(raw_recipient)
+    return addr or raw_recipient
+
+
+def _get_subject(draft: Draft) -> str:
+    if draft.subject is not None:
+        return draft.subject.strip()
+    return f"Re: {draft.email.subject}" if draft.email else ""
+
+
+def _require_recipient(draft: Draft) -> str:
+    recipient = _get_recipient_address(draft).strip()
+    if not recipient or "@" not in recipient:
+        raise SendError("Draft recipient is missing or invalid")
+    return recipient
 
 
 # -- Gmail send via Gmail API --
@@ -75,9 +110,13 @@ def _get_recipient_address(draft: Draft) -> str:
 def _send_via_gmail(draft: Draft, db: Session):
     token = get_gmail_token(db, draft.user_id)
 
-    msg = MIMEText(draft.content)
-    msg["To"] = _get_recipient_address(draft)
-    msg["Subject"] = f"Re: {draft.email.subject}" if draft.email else ""
+    recipient = _require_recipient(draft)
+    subject = _get_subject(draft)
+    if not subject:
+        raise SendError("Draft subject is empty")
+    msg = MIMEText(draft.content, "plain", "utf-8")
+    msg["To"] = recipient
+    msg["Subject"] = subject
     raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
 
     resp = httpx.post(
@@ -85,6 +124,7 @@ def _send_via_gmail(draft: Draft, db: Session):
         headers={"Authorization": f"Bearer {token}"},
         json={"raw": raw},
         timeout=30,
+        trust_env=True,
     )
     if resp.status_code >= 400:
         raise SendError(f"Gmail send failed ({resp.status_code}): {resp.text[:200]}")
@@ -94,14 +134,18 @@ def _send_via_gmail(draft: Draft, db: Session):
 
 def _send_via_outlook(draft: Draft, db: Session):
     token = get_outlook_token(db, draft.user_id)
+    recipient = _require_recipient(draft)
+    subject = _get_subject(draft)
+    if not subject:
+        raise SendError("Draft subject is empty")
 
     body = {
         "message": {
-            "subject": f"Re: {draft.email.subject}" if draft.email else "",
+            "subject": subject,
             "body": {"contentType": "Text", "content": draft.content},
             "toRecipients": [
-                {"emailAddress": {"address": _get_recipient_address(draft)}}
-            ] if draft.email else [],
+                {"emailAddress": {"address": recipient}}
+            ],
         },
         "saveToSentItems": True,
     }
@@ -111,6 +155,7 @@ def _send_via_outlook(draft: Draft, db: Session):
         headers={"Authorization": f"Bearer {token}"},
         json=body,
         timeout=30,
+        trust_env=True,
     )
     if resp.status_code >= 400:
         raise SendError(f"Outlook send failed ({resp.status_code}): {resp.text[:200]}")

@@ -6,7 +6,7 @@ from app.db.models import AuditLog
 class TestAuditLog:
     def test_import_creates_audit_entry(self, auth_client, db_session):
         resp = auth_client.post("/api/emails/import")
-        assert resp.status_code == 200
+        assert resp.status_code == 202
         logs = db_session.query(AuditLog).filter(AuditLog.action == "email_import").all()
         assert len(logs) >= 1
         assert logs[0].detail == "imported 8"
@@ -41,7 +41,7 @@ class TestAuditLog:
 
     def test_category_change_creates_audit_entry(self, auth_client, db_session):
         auth_client.post("/api/emails/import")
-        resp = auth_client.patch("/api/emails/1", json={"category": "important"})
+        resp = auth_client.patch("/api/emails/1", json={"category": "spam"})
         assert resp.status_code == 200
         logs = db_session.query(AuditLog).filter(AuditLog.action == "category_change").all()
         assert len(logs) >= 1
@@ -72,7 +72,7 @@ class TestAIMetadata:
         email = db_session.query(Email).filter(Email.id == 1).first()
         assert email.ai_metadata is not None
         md = json.loads(email.ai_metadata)
-        assert md["prompt_version"] == "1.0.0"
+        assert md["prompt_version"] == "1.2.0"
         assert "provider" in md
         assert "generated_at" in md
 
@@ -83,7 +83,7 @@ class TestAIMetadata:
         email = db_session.query(Email).filter(Email.id == 1).first()
         assert email.ai_metadata is not None
         md = json.loads(email.ai_metadata)
-        assert md["prompt_version"] == "1.0.0"
+        assert md["prompt_version"] == "1.2.0"
 
     def test_draft_generate_stores_metadata(self, auth_client, db_session):
         auth_client.post("/api/emails/import")
@@ -92,7 +92,7 @@ class TestAIMetadata:
         draft = db_session.query(Draft).first()
         assert draft.ai_metadata is not None
         md = json.loads(draft.ai_metadata)
-        assert md["prompt_version"] == "1.0.0"
+        assert md["prompt_version"] == "1.2.0"
 
     def test_reminder_extract_stores_metadata(self, auth_client, db_session):
         auth_client.post("/api/emails/import")
@@ -101,4 +101,4 @@ class TestAIMetadata:
         reminder = db_session.query(Reminder).first()
         assert reminder.ai_metadata is not None
         md = json.loads(reminder.ai_metadata)
-        assert md["prompt_version"] == "1.0.0"
+        assert md["prompt_version"] == "1.2.0"

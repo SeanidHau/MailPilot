@@ -13,6 +13,7 @@ export interface EmailResponse {
   category: string;
   importance_score: number;
   summary: string | null;
+  ai_processed: boolean;
   spam_confidence: number | null;
   spam_signals: string | null;
   imported_source: string;

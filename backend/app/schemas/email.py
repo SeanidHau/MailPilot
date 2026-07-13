@@ -2,6 +2,7 @@ from __future__ import annotations
 import datetime
 from typing import Optional
 from pydantic import BaseModel, Field
+from typing import Literal
 
 from app.schemas import EmailCategory
 
@@ -10,6 +11,18 @@ class ImportResponse(BaseModel):
     imported: int
     skipped: int = 0
     errors: list[str] = []
+
+
+class BulkEmailRequest(BaseModel):
+    email_ids: list[int] = Field(..., min_length=1, max_length=100)
+    action: Literal["mark_read", "delete"]
+
+
+class BulkEmailResponse(BaseModel):
+    action: str
+    requested: int
+    updated: int
+    not_found: int
 
 
 class EmailBase(BaseModel):
@@ -32,6 +45,7 @@ class EmailResponse(BaseModel):
     category: str
     importance_score: int
     summary: Optional[str] = None
+    ai_processed: bool = False
     spam_confidence: Optional[float] = None
     spam_signals: Optional[str] = None
     imported_source: str

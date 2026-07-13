@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { LayoutDashboard, Mail, FileText, Bell, Settings, LogOut, User } from 'lucide-react'
 import { useAuth } from '../app/AuthContext'
+import { AIJobMonitor } from './AIJobMonitor'
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: '仪表盘' },
@@ -51,9 +52,12 @@ export function Layout() {
           )}
         </div>
       </aside>
-      <main className="app-main">
-        <Outlet />
-      </main>
+      <div className="app-content">
+        <AIJobMonitor />
+        <main className="app-main">
+          <Outlet />
+        </main>
+      </div>
     </div>
   )
 }

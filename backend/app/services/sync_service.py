@@ -10,12 +10,14 @@ import httpx
 from sqlalchemy.orm import Session
 
 from app.db.models import Email, User
+from app.services import email_service
 from app.services.gmail_service import get_valid_access_token as get_gmail_token
 from app.services.outlook_service import get_valid_access_token as get_outlook_token
 
 logger = logging.getLogger(__name__)
 
-MAX_EMAILS_PER_SYNC = 50
+GMAIL_PAGE_SIZE = 500
+OUTLOOK_PAGE_SIZE = 100
 
 
 class SyncResult:
@@ -23,6 +25,7 @@ class SyncResult:
         self.new: int = 0
         self.skipped: int = 0
         self.errors: list[str] = []
+        self.new_email_ids: list[int] = []
 
 
 def sync_gmail_inbox(db: Session, user_id: int) -> SyncResult:
@@ -34,7 +37,7 @@ def sync_gmail_inbox(db: Session, user_id: int) -> SyncResult:
     if not msg_ids:
         return result
 
-    for msg_id in msg_ids[:MAX_EMAILS_PER_SYNC]:
+    for msg_id in msg_ids:
         try:
             msg = _gmail_get_message(token, msg_id, result)
             if not msg:
@@ -44,6 +47,7 @@ def sync_gmail_inbox(db: Session, user_id: int) -> SyncResult:
             result.errors.append(f"gmail:{msg_id}: {exc}")
 
     db.commit()
+    result.errors.extend(email_service.process_emails_with_ai(db, user_id, result.new_email_ids))
     return result
 
 
@@ -55,7 +59,7 @@ def sync_outlook_inbox(db: Session, user_id: int) -> SyncResult:
     if not messages:
         return result
 
-    for msg in messages[:MAX_EMAILS_PER_SYNC]:
+    for msg in messages:
         try:
             msg_id = msg.get("id", "")
             if not msg_id:
@@ -65,26 +69,42 @@ def sync_outlook_inbox(db: Session, user_id: int) -> SyncResult:
             result.errors.append(f"outlook:{msg.get('id','')}: {exc}")
 
     db.commit()
+    result.errors.extend(email_service.process_emails_with_ai(db, user_id, result.new_email_ids))
     return result
 
 
 # -- Gmail API helpers --
 
 def _gmail_list_messages(token: str, result: SyncResult) -> list[str]:
+    message_ids: list[str] = []
+    page_token: str | None = None
     try:
-        resp = httpx.get(
-            "https://gmail.googleapis.com/gmail/v1/users/me/messages",
-            headers={"Authorization": f"Bearer {token}"},
-            params={"maxResults": MAX_EMAILS_PER_SYNC, "labelIds": "INBOX"},
-            timeout=20,
-        )
-        resp.raise_for_status()
-        return [m["id"] for m in resp.json().get("messages", [])]
+        while True:
+            params: dict[str, Any] = {
+                "maxResults": GMAIL_PAGE_SIZE,
+                "labelIds": "INBOX",
+            }
+            if page_token:
+                params["pageToken"] = page_token
+
+            resp = httpx.get(
+                "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+                headers={"Authorization": f"Bearer {token}"},
+                params=params,
+                timeout=20,
+                trust_env=True,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            message_ids.extend(m["id"] for m in data.get("messages", []) if m.get("id"))
+            page_token = data.get("nextPageToken")
+            if not page_token:
+                return message_ids
     except httpx.HTTPStatusError as exc:
         result.errors.append(f"Gmail list failed: {exc.response.status_code}")
     except Exception as exc:
         result.errors.append(f"Gmail list error: {exc}")
-    return []
+    return message_ids
 
 
 def _gmail_get_message(token: str, msg_id: str, result: SyncResult) -> dict | None:
@@ -94,6 +114,7 @@ def _gmail_get_message(token: str, msg_id: str, result: SyncResult) -> dict | No
             headers={"Authorization": f"Bearer {token}"},
             params={"format": "full"},
             timeout=15,
+            trust_env=True,
         )
         resp.raise_for_status()
         return resp.json()
@@ -105,28 +126,39 @@ def _gmail_get_message(token: str, msg_id: str, result: SyncResult) -> dict | No
 # -- Outlook / MS Graph helpers --
 
 def _outlook_list_messages(token: str, result: SyncResult) -> list[dict]:
+    messages: list[dict] = []
+    next_url: str | None = "https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages"
+    params: dict[str, Any] | None = {
+        "$top": OUTLOOK_PAGE_SIZE,
+        "$orderby": "receivedDateTime desc",
+        "$select": "id,from,toRecipients,subject,body,isRead,receivedDateTime,hasAttachments",
+        "$expand": "attachments($select=name,contentType,size)",
+    }
     try:
-        resp = httpx.get(
-            "https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages",
-            headers={
-                "Authorization": f"Bearer {token}",
-                "Prefer": 'outlook.body-content-type="text"',
-            },
-            params={
-                "$top": MAX_EMAILS_PER_SYNC,
-                "$orderby": "receivedDateTime desc",
-                "$select": "id,from,toRecipients,subject,body,isRead,receivedDateTime,hasAttachments",
-                "$expand": "attachments($select=name,contentType,size)",
-            },
-            timeout=20,
-        )
-        resp.raise_for_status()
-        return resp.json().get("value", [])
+        while next_url:
+            resp = httpx.get(
+                next_url,
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Prefer": 'outlook.body-content-type="text"',
+                },
+                params=params,
+                timeout=20,
+                trust_env=True,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            messages.extend(data.get("value", []))
+            next_url = data.get("@odata.nextLink")
+            # Graph nextLink already contains the original query and its
+            # continuation token; do not append the first-page parameters.
+            params = None
+        return messages
     except httpx.HTTPStatusError as exc:
         result.errors.append(f"Outlook list failed: {exc.response.status_code}")
     except Exception as exc:
         result.errors.append(f"Outlook list error: {exc}")
-    return []
+    return messages
 
 
 # -- Shared upsert --
@@ -173,6 +205,8 @@ def _upsert_email(db: Session, user_id: int, provider: str, raw: dict, result: S
         attachments=attachments_json,
     )
     db.add(email)
+    db.flush()
+    result.new_email_ids.append(email.id)
     result.new += 1
 
 

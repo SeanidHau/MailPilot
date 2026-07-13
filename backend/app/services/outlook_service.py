@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import secrets
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from urllib.parse import urlencode
@@ -31,9 +32,19 @@ class OutlookOAuthError(Exception):
     pass
 
 
+@dataclass(frozen=True)
+class OutlookOAuthState:
+    user_id: int
+    redirect_uri: str
+
+
 def _require_oauth_config() -> None:
     if not settings.outlook_client_id or not settings.outlook_client_secret:
         raise OutlookOAuthError("Outlook OAuth is not configured")
+
+
+def is_oauth_configured() -> bool:
+    return bool(settings.outlook_client_id and settings.outlook_client_secret)
 
 
 def _utcnow() -> datetime:
@@ -58,46 +69,65 @@ def create_oauth_nonce() -> str:
     return secrets.token_urlsafe(32)
 
 
-def create_oauth_state(user_id: int, nonce: str) -> str:
+def _fallback_redirect_uri() -> str:
+    return settings.outlook_redirect_uri or "http://localhost:8000/api/outlook/oauth/callback"
+
+
+def create_oauth_state(user_id: int, nonce: str, redirect_uri: str | None = None) -> str:
     expire = _utcnow() + timedelta(minutes=STATE_EXPIRE_MINUTES)
-    return jwt.encode({"sub": str(user_id), "nonce": nonce, "exp": expire}, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(
+        {
+            "sub": str(user_id),
+            "nonce": nonce,
+            "redirect_uri": redirect_uri or _fallback_redirect_uri(),
+            "exp": expire,
+        },
+        SECRET_KEY,
+        algorithm=ALGORITHM,
+    )
 
 
-def parse_oauth_state(state: str, expected_nonce: str) -> int:
+def parse_oauth_state(state: str, expected_nonce: str) -> OutlookOAuthState:
     try:
         payload = jwt.decode(state, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = payload.get("sub")
         nonce = payload.get("nonce")
         if not user_id or not nonce or nonce != expected_nonce:
             raise OutlookOAuthError("Invalid OAuth state")
-        return int(user_id)
+        redirect_uri = payload.get("redirect_uri") or _fallback_redirect_uri()
+        if not isinstance(redirect_uri, str):
+            raise OutlookOAuthError("Invalid OAuth state")
+        return OutlookOAuthState(user_id=int(user_id), redirect_uri=redirect_uri)
     except (JWTError, ValueError) as exc:
         raise OutlookOAuthError("Invalid OAuth state") from exc
 
-def build_authorization_url(user_id: int, nonce: str) -> str:
+
+def build_authorization_url(user_id: int, nonce: str, redirect_uri: str | None = None) -> str:
     _require_oauth_config()
-    state = create_oauth_state(user_id, nonce)
+    redirect_uri = redirect_uri or _fallback_redirect_uri()
+    state = create_oauth_state(user_id, nonce, redirect_uri)
     params = {
         "client_id": settings.outlook_client_id,
         "response_type": "code",
-        "redirect_uri": settings.outlook_redirect_uri,
+        "redirect_uri": redirect_uri,
         "scope": settings.outlook_scopes,
         "state": state,
         "response_mode": "query",
     }
     return f"{MS_AUTH_URL}?{urlencode(params)}"
 
+
 def exchange_code_for_tokens(db: Session, code: str, state: str, expected_nonce: str) -> OutlookAccount:
     _require_oauth_config()
-    user_id = parse_oauth_state(state, expected_nonce)
+    oauth_state = parse_oauth_state(state, expected_nonce)
     token_data = _post_token_request({
         "client_id": settings.outlook_client_id,
         "client_secret": settings.outlook_client_secret,
         "code": code,
-        "redirect_uri": settings.outlook_redirect_uri,
+        "redirect_uri": oauth_state.redirect_uri,
         "grant_type": "authorization_code",
     })
-    return save_token_response(db, user_id, token_data)
+    return save_token_response(db, oauth_state.user_id, token_data)
 
 
 def save_token_response(db: Session, user_id: int, token_data: dict[str, Any]) -> OutlookAccount:
@@ -172,9 +202,10 @@ def get_valid_access_token(db: Session, user_id: int) -> str:
 def get_outlook_status(db: Session, user_id: int) -> dict[str, Any]:
     row = db.query(OutlookAccount).filter(OutlookAccount.user_id == user_id).first()
     if not row:
-        return {"connected": False}
+        return {"connected": False, "configured": is_oauth_configured()}
     return {
         "connected": True,
+        "configured": is_oauth_configured(),
         "email": row.email,
         "scopes": row.scopes,
         "expires_at": row.expires_at,
@@ -192,10 +223,10 @@ def disconnect_outlook(db: Session, user_id: int) -> None:
 
 def _post_token_request(data: dict[str, str]) -> dict[str, Any]:
     try:
-        resp = httpx.post(MS_TOKEN_URL, data=data, timeout=15)
+        resp = httpx.post(MS_TOKEN_URL, data=data, timeout=15, trust_env=True)
         resp.raise_for_status()
         return resp.json()
-    except httpx.HTTPError as exc:
+    except (httpx.HTTPError, ImportError) as exc:
         logger.warning("Outlook OAuth token request failed: %s", exc)
         raise OutlookOAuthError("Outlook OAuth token request failed") from exc
 
@@ -206,6 +237,7 @@ def _fetch_ms_email(access_token: str) -> str | None:
             MS_USERINFO_URL,
             headers={"Authorization": f"Bearer {access_token}"},
             timeout=10,
+            trust_env=True,
         )
         resp.raise_for_status()
         data = resp.json()
