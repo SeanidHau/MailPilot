@@ -174,16 +174,21 @@ export function SettingsPage() {
   useEffect(() => {
     const job = aiJobQuery.data
     if (!job) return
-    if (job.status === 'queued' || job.status === 'running') {
+    if (job.status === 'queued' || job.status === 'running' || job.status === 'pause_requested') {
       const progress = job.result || {}
       if (typeof progress.total === 'number') {
-        setSaveMsg(`AI 设置已保存，正在处理邮件：${progress.processed ?? 0}/${progress.total}`)
+        setSaveMsg(job.status === 'pause_requested'
+          ? `AI 设置已保存，正在暂停处理：${progress.processed ?? 0}/${progress.total}`
+          : `AI 设置已保存，正在处理邮件：${progress.processed ?? 0}/${progress.total}`)
       }
       return
     }
     if (job.status === 'completed') {
       const result = job.result || {}
       setSaveMsg(`AI 设置已保存，邮件处理完成：处理 ${result.processed ?? 0} 封${result.failed ? `，失败 ${result.failed} 封` : ''}。`)
+    } else if (job.status === 'paused') {
+      const result = job.result || {}
+      setSaveMsg(`AI 设置已保存，邮件处理已暂停：已处理 ${result.processed ?? 0} 封。`)
     } else {
       setSaveMsg(`AI 设置已保存，但邮件处理失败：${job.error || '后台任务执行失败'}`)
     }
@@ -196,7 +201,8 @@ export function SettingsPage() {
     if (!job || job.status === 'queued' || job.status === 'running') return
     if (job.status === 'completed') {
       const result = job.result || {}
-      setGmailMsg(`同步完成：新增 ${result.new ?? 0} 封，跳过 ${result.skipped ?? 0} 封${result.errors?.length ? `，${result.errors.length} 个错误` : ''}。`)
+      if (typeof result.ai_job_id === 'number') rememberAIJob(result.ai_job_id)
+      setGmailMsg(`同步完成：新增 ${result.new ?? 0} 封，跳过 ${result.skipped ?? 0} 封${result.ai_job_id ? '，AI 处理已转入后台' : ''}${result.errors?.length ? `，${result.errors.length} 个错误` : ''}。`)
       queryClient.invalidateQueries()
     } else {
       setGmailMsg(`同步失败：${job.error || '后台任务执行失败'}`)
@@ -209,7 +215,8 @@ export function SettingsPage() {
     if (!job || job.status === 'queued' || job.status === 'running') return
     if (job.status === 'completed') {
       const result = job.result || {}
-      setOutlookMsg(`同步完成：新增 ${result.new ?? 0} 封，跳过 ${result.skipped ?? 0} 封${result.errors?.length ? `，${result.errors.length} 个错误` : ''}。`)
+      if (typeof result.ai_job_id === 'number') rememberAIJob(result.ai_job_id)
+      setOutlookMsg(`同步完成：新增 ${result.new ?? 0} 封，跳过 ${result.skipped ?? 0} 封${result.ai_job_id ? '，AI 处理已转入后台' : ''}${result.errors?.length ? `，${result.errors.length} 个错误` : ''}。`)
       queryClient.invalidateQueries()
     } else {
       setOutlookMsg(`同步失败：${job.error || '后台任务执行失败'}`)

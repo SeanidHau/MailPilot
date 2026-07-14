@@ -29,3 +29,14 @@ def get_job(job_id: int, db: Session = Depends(get_db), user=Depends(require_use
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return job_service.serialize_job(job)
+
+
+@router.post("/jobs/{job_id}/pause", response_model=JobResponse)
+def pause_job(job_id: int, db: Session = Depends(get_db), user=Depends(require_user)):
+    try:
+        job = job_service.request_pause_job(db, job_id, user.id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job_service.serialize_job(job)

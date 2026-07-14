@@ -366,26 +366,62 @@ def process_emails_with_ai(
     return errors
 
 
-def process_unprocessed_emails(db: Session, user_id: int, progress_callback=None) -> dict:
-    """Process only emails that do not have a complete AI result yet."""
-    emails = (
-        db.query(Email)
-        .filter(
+def process_unprocessed_emails(db: Session, user_id: int, progress_callback=None, should_pause=None) -> dict:
+    """Process incomplete AI results, prioritizing the newest unprocessed emails.
+
+    The query is intentionally re-run after each email so messages synced while
+    the job is already running can jump ahead of older backlog items.
+    """
+    errors: list[str] = []
+    processed = 0
+    failed = 0
+    attempted_ids: set[int] = set()
+
+    def next_query():
+        query = db.query(Email).filter(
             Email.user_id == user_id,
             Email.is_deleted.is_(False),
             or_(Email.ai_metadata.is_(None), Email.summary.is_(None)),
         )
-        .order_by(Email.id.asc())
-        .all()
-    )
-    total = len(emails)
-    errors: list[str] = []
-    processed = 0
-    failed = 0
+        if attempted_ids:
+            query = query.filter(~Email.id.in_(attempted_ids))
+        return query
+
+    total = next_query().count()
     if progress_callback:
         progress_callback({"total": total, "processed": 0, "failed": 0, "errors": []})
 
-    for email in emails:
+    while True:
+        if should_pause and should_pause():
+            if progress_callback:
+                progress_callback({
+                    "total": processed + next_query().count(),
+                    "processed": processed,
+                    "failed": failed,
+                    "current_email_id": None,
+                    "current_subject": None,
+                    "stage": "paused",
+                    "errors": errors[-10:],
+                })
+            return {
+                "total": processed,
+                "processed": processed,
+                "failed": failed,
+                "paused": True,
+                "errors": errors,
+            }
+        remaining = next_query().count()
+        if remaining == 0:
+            break
+        total = processed + remaining
+        email = (
+            next_query()
+            .order_by(Email.received_at.desc(), Email.id.desc())
+            .first()
+        )
+        if not email:
+            break
+        attempted_ids.add(email.id)
         if progress_callback:
             progress_callback({
                 "total": total,
@@ -411,8 +447,9 @@ def process_unprocessed_emails(db: Session, user_id: int, progress_callback=None
             )
         processed += 1
         if progress_callback:
+            remaining_after = next_query().count()
             progress_callback({
-                "total": total,
+                "total": processed + remaining_after,
                 "processed": processed,
                 "failed": failed,
                 "current_email_id": None,
@@ -422,7 +459,7 @@ def process_unprocessed_emails(db: Session, user_id: int, progress_callback=None
             })
 
     return {
-        "total": total,
+        "total": processed,
         "processed": processed,
         "failed": failed,
         "errors": errors,

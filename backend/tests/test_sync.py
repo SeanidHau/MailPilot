@@ -60,7 +60,7 @@ class TestGmailSync:
     @patch("app.services.sync_service.get_gmail_token", return_value="fake-token")
     @patch("app.services.sync_service._gmail_get_message")
     @patch("app.services.sync_service._gmail_list_messages")
-    def test_gmail_sync_automatically_processes_new_email(self, mock_list, mock_get, _mock_token, db_session):
+    def test_gmail_sync_only_imports_new_email(self, mock_list, mock_get, _mock_token, db_session):
         mock_list.return_value = ["msg-auto-001"]
         mock_get.return_value = {
             "id": "msg-auto-001",
@@ -81,9 +81,10 @@ class TestGmailSync:
         email = db_session.query(Email).filter(Email.provider_message_id == "msg-auto-001").one()
 
         assert result.new == 1
-        assert email.category == "important"
-        assert email.summary
-        assert email.ai_metadata is not None
+        assert result.new_email_ids == [email.id]
+        assert email.category == "normal"
+        assert email.summary is None
+        assert email.ai_metadata is None
 
 
 class TestOutlookSync:

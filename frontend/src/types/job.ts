@@ -1,4 +1,4 @@
-export type JobStatus = 'queued' | 'running' | 'completed' | 'failed';
+export type JobStatus = 'queued' | 'running' | 'pause_requested' | 'paused' | 'completed' | 'failed';
 
 export interface JobAcceptedResponse {
   job_id: number;

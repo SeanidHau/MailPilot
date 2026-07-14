@@ -11,6 +11,7 @@ from app.db.models import BackgroundJob
 from app.services import email_service, sync_service
 
 logger = logging.getLogger(__name__)
+ACTIVE_JOB_STATUSES = ("queued", "running", "pause_requested")
 
 
 def _utcnow() -> datetime:
@@ -31,7 +32,7 @@ def create_or_get_active_job(db: Session, user_id: int, job_type: str) -> Backgr
         .filter(
             BackgroundJob.user_id == user_id,
             BackgroundJob.job_type == job_type,
-            BackgroundJob.status.in_(["queued", "running"]),
+            BackgroundJob.status.in_(ACTIVE_JOB_STATUSES),
         )
         .order_by(BackgroundJob.id.desc())
         .first()
@@ -53,17 +54,67 @@ def get_active_job(db: Session, user_id: int, job_type: str) -> BackgroundJob | 
         .filter(
             BackgroundJob.user_id == user_id,
             BackgroundJob.job_type == job_type,
-            BackgroundJob.status.in_(["queued", "running"]),
+            BackgroundJob.status.in_(ACTIVE_JOB_STATUSES),
         )
         .order_by(BackgroundJob.id.desc())
         .first()
     )
 
 
+def create_or_schedule_job(
+    db: Session,
+    user_id: int,
+    job_type: str,
+    bind: Any,
+    payload: list[dict] | None = None,
+) -> BackgroundJob:
+    """Create and schedule a job, or return the active one for idempotent actions."""
+    active = get_active_job(db, user_id, job_type)
+    if active:
+        return active
+
+    job = create_job(db, user_id, job_type)
+    from app.services import task_runner
+
+    task_runner.schedule_job(job.id, user_id, job.job_type, bind, payload)
+    db.refresh(job)
+    return job
+
+
+def queue_ai_processing_job(db: Session, user_id: int, bind: Any) -> BackgroundJob:
+    """Queue AI processing unless one is already active for this user."""
+    active = get_active_job(db, user_id, "ai_process")
+    if active:
+        return active
+
+    job = create_job(db, user_id, "ai_process")
+    from app.services import task_runner
+
+    task_runner.schedule_job(job.id, user_id, job.job_type, bind)
+    return job
+
+
+def request_pause_job(db: Session, job_id: int, user_id: int) -> BackgroundJob | None:
+    job = get_job(db, job_id, user_id)
+    if not job:
+        return None
+    if job.job_type != "ai_process":
+        raise ValueError("Only AI processing jobs can be paused")
+    if job.status == "queued":
+        job.status = "pause_requested"
+    elif job.status == "running":
+        job.status = "pause_requested"
+    elif job.status not in {"pause_requested", "paused", "completed", "failed"}:
+        raise ValueError(f"Cannot pause job in status {job.status}")
+    db.commit()
+    db.refresh(job)
+    return job
+
+
 def recover_stale_jobs(db: Session) -> int:
     """Mark jobs left active by a previous worker process as failed."""
     stale_jobs = db.query(BackgroundJob).filter(
-        BackgroundJob.status.in_(["queued", "running"]),
+        BackgroundJob.status.in_(ACTIVE_JOB_STATUSES),
     ).all()
     if not stale_jobs:
         return 0
@@ -114,6 +165,18 @@ def run_job(
         ).first()
         if not job:
             return
+        if job.status == "pause_requested":
+            job.status = "paused"
+            job.result = json.dumps({
+                "total": 0,
+                "processed": 0,
+                "failed": 0,
+                "paused": True,
+                "errors": [],
+            }, ensure_ascii=False)
+            job.finished_at = _utcnow()
+            db.commit()
+            return
 
         job.status = "running"
         job.started_at = _utcnow()
@@ -134,6 +197,9 @@ def run_job(
                 "skipped": sync_result.skipped,
                 "errors": sync_result.errors,
             }
+            if sync_result.new > 0:
+                ai_job = queue_ai_processing_job(db, user_id, bind)
+                result["ai_job_id"] = ai_job.id
         elif job_type == "outlook_sync":
             sync_result = sync_service.sync_outlook_inbox(db, user_id)
             result = {
@@ -141,6 +207,9 @@ def run_job(
                 "skipped": sync_result.skipped,
                 "errors": sync_result.errors,
             }
+            if sync_result.new > 0:
+                ai_job = queue_ai_processing_job(db, user_id, bind)
+                result["ai_job_id"] = ai_job.id
         elif job_type == "ai_process":
             def update_progress(progress: dict[str, Any]) -> None:
                 current = db.query(BackgroundJob).filter(
@@ -150,14 +219,21 @@ def run_job(
                 current.result = json.dumps(progress, ensure_ascii=False)
                 db.commit()
 
+            def should_pause() -> bool:
+                current = db.query(BackgroundJob).filter(
+                    BackgroundJob.id == job_id,
+                    BackgroundJob.user_id == user_id,
+                ).one()
+                return current.status == "pause_requested"
+
             result = email_service.process_unprocessed_emails(
-                db, user_id, progress_callback=update_progress,
+                db, user_id, progress_callback=update_progress, should_pause=should_pause,
             )
         else:
             raise ValueError(f"Unknown background job type: {job_type}")
 
         job = db.query(BackgroundJob).filter(BackgroundJob.id == job_id).one()
-        job.status = "completed"
+        job.status = "paused" if result.get("paused") else "completed"
         job.result = json.dumps(result, ensure_ascii=False)
         job.finished_at = _utcnow()
         db.commit()

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -10,13 +11,13 @@ import httpx
 from sqlalchemy.orm import Session
 
 from app.db.models import Email, User
-from app.services import email_service
 from app.services.gmail_service import get_valid_access_token as get_gmail_token
 from app.services.outlook_service import get_valid_access_token as get_outlook_token
 
 logger = logging.getLogger(__name__)
 
 GMAIL_PAGE_SIZE = 500
+GMAIL_DETAIL_WORKERS = 8
 OUTLOOK_PAGE_SIZE = 100
 
 
@@ -37,9 +38,8 @@ def sync_gmail_inbox(db: Session, user_id: int) -> SyncResult:
     if not msg_ids:
         return result
 
-    for msg_id in msg_ids:
+    for msg_id, msg in _gmail_fetch_messages(token, msg_ids, result):
         try:
-            msg = _gmail_get_message(token, msg_id, result)
             if not msg:
                 continue
             _upsert_email(db, user_id, "gmail", msg, result)
@@ -47,7 +47,6 @@ def sync_gmail_inbox(db: Session, user_id: int) -> SyncResult:
             result.errors.append(f"gmail:{msg_id}: {exc}")
 
     db.commit()
-    result.errors.extend(email_service.process_emails_with_ai(db, user_id, result.new_email_ids))
     return result
 
 
@@ -69,7 +68,6 @@ def sync_outlook_inbox(db: Session, user_id: int) -> SyncResult:
             result.errors.append(f"outlook:{msg.get('id','')}: {exc}")
 
     db.commit()
-    result.errors.extend(email_service.process_emails_with_ai(db, user_id, result.new_email_ids))
     return result
 
 
@@ -107,15 +105,56 @@ def _gmail_list_messages(token: str, result: SyncResult) -> list[str]:
     return message_ids
 
 
-def _gmail_get_message(token: str, msg_id: str, result: SyncResult) -> dict | None:
+def _gmail_fetch_messages(token: str, msg_ids: list[str], result: SyncResult) -> list[tuple[str, dict | None]]:
+    """Fetch Gmail message details concurrently.
+
+    Gmail's list endpoint only returns IDs, so detail fetches dominate sync time.
+    Keep concurrency modest to improve latency without being hostile to API quota.
+    """
+    if not msg_ids:
+        return []
+
+    workers = min(GMAIL_DETAIL_WORKERS, len(msg_ids))
+    fetched: list[tuple[str, dict | None]] = []
+    with httpx.Client(
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=15,
+        trust_env=True,
+    ) as client:
+        with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="gmail-fetch") as executor:
+            future_map = {
+                executor.submit(_gmail_get_message, token, msg_id, result, client): msg_id
+                for msg_id in msg_ids
+            }
+            for future in as_completed(future_map):
+                msg_id = future_map[future]
+                try:
+                    fetched.append((msg_id, future.result()))
+                except Exception as exc:
+                    result.errors.append(f"gmail fetch {msg_id}: {exc}")
+                    fetched.append((msg_id, None))
+    return fetched
+
+
+def _gmail_get_message(
+    token: str,
+    msg_id: str,
+    result: SyncResult,
+    client: httpx.Client | None = None,
+) -> dict | None:
     try:
-        resp = httpx.get(
-            f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{msg_id}",
-            headers={"Authorization": f"Bearer {token}"},
-            params={"format": "full"},
-            timeout=15,
-            trust_env=True,
-        )
+        url = f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{msg_id}"
+        params = {"format": "full"}
+        if client:
+            resp = client.get(url, params=params)
+        else:
+            resp = httpx.get(
+                url,
+                headers={"Authorization": f"Bearer {token}"},
+                params=params,
+                timeout=15,
+                trust_env=True,
+            )
         resp.raise_for_status()
         return resp.json()
     except Exception as exc:

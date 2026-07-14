@@ -36,8 +36,6 @@ export function RemindersPage() {
     onError: (error: Error) => setBulkMessage(`操作失败：${error.message}`),
   })
 
-  if (isLoading) return <div className="empty-state">加载中...</div>
-
   const reminders = data?.items || []
   const selectableIds = reminders.filter((reminder) => reminder.status !== 'deleted').map((reminder) => reminder.id)
   const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selectedIds.has(id))
@@ -52,6 +50,8 @@ export function RemindersPage() {
     setSelectedIds(new Set())
     setBulkMessage('')
   }
+
+  if (isLoading) return <div className="empty-state">加载中...</div>
 
   const toggleAll = (checked: boolean) => {
     setSelectedIds(checked ? new Set(selectableIds) : new Set())
